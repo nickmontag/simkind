@@ -15,7 +15,7 @@ contextual legality, resolves outcomes, mutates world state, and emits events.
 | Goals | Criterion vocabulary and progress aggregation | Evidence queries and resolution operations |
 | Conversation | Lifecycle directive | Participants, dialogue generation, story hooks, relationship effects |
 | Runtime | Stable lifecycle ordering | Each phase through `CharacterRuntimeAdapter` |
-| Model runtime | Async dispatch, priority, deterministic result polling | Provider, prompt, schema parsing, fallback |
+| Model runtime | Async dispatch, priority, request-correlated outcome polling | Provider, prompt, schema parsing, retry, fallback |
 | Decisions | Exact input ledger and tick replay | Input type, request snapshot, persistence |
 | Evaluation | Small stable counters | Game-specific quality rubric and later soak scenarios |
 
@@ -49,6 +49,6 @@ combat and perception resolve, then deliberate from the resulting world.
 - Capability documentation is derived from the same engine-owned catalog used
   to describe the legal action vocabulary.
 - Retrieval and replay ordering have explicit deterministic tie breakers.
+- Provider failures are returned as ordinary model outcomes rather than unhandled promises.
 - Story-specific behavior enters through adapters or hooks, never generic
   conversation code.
-

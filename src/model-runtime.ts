@@ -1,33 +1,41 @@
+import { compareStrings } from './order.js';
+
 export interface ModelRequest {
   id: string;
   priority: number;
   issuedAtTick: number;
 }
 
-interface Completed<Input> {
-  request: ModelRequest;
-  input: Input;
-}
+export type ModelCompletion<Request extends ModelRequest, Input> =
+  | { status: 'fulfilled'; request: Request; input: Input }
+  | { status: 'rejected'; request: Request; error: unknown };
 
 /** Provider-neutral non-blocking request queue; prompt/content policy stays in an Adapter. */
 export class ModelRuntime<Request extends ModelRequest, Input> {
   private readonly dispatched = new Set<string>();
   private readonly inFlight = new Set<Promise<void>>();
-  private readonly completed: Completed<Input>[] = [];
+  private readonly completed: ModelCompletion<Request, Input>[] = [];
+  private readonly maxInFlight: number;
+  private generation = 0;
 
   constructor(
     private readonly fulfill: (request: Request) => Promise<Input>,
-    private readonly maxInFlight = 6,
-  ) {}
+    maxInFlight = 6,
+  ) {
+    if (!Number.isSafeInteger(maxInFlight) || maxInFlight <= 0) {
+      throw new RangeError(`maxInFlight must be a positive integer; received ${maxInFlight}`);
+    }
+    this.maxInFlight = maxInFlight;
+  }
 
-  poll(requests: readonly Request[]): Input[] {
+  poll(requests: readonly Request[]): ModelCompletion<Request, Input>[] {
     const out = this.completed
       .sort(
         (a, b) =>
           a.request.issuedAtTick - b.request.issuedAtTick ||
-          a.request.id.localeCompare(b.request.id),
+          compareStrings(a.request.id, b.request.id),
       )
-      .map((entry) => entry.input);
+      .slice();
     this.completed.length = 0;
 
     const pending = requests
@@ -36,16 +44,33 @@ export class ModelRuntime<Request extends ModelRequest, Input> {
         (a, b) =>
           b.priority - a.priority ||
           a.issuedAtTick - b.issuedAtTick ||
-          a.id.localeCompare(b.id),
+          compareStrings(a.id, b.id),
       );
     for (const request of pending) {
       if (this.inFlight.size >= this.maxInFlight) break;
+      if (this.dispatched.has(request.id)) continue;
       this.dispatched.add(request.id);
-      const task = this.fulfill(request).then((input) => {
-        this.completed.push({ request, input });
-      });
+      const generation = this.generation;
+      let fulfillment: Promise<Input>;
+      try {
+        fulfillment = this.fulfill(request);
+      } catch (error) {
+        fulfillment = Promise.reject(error);
+      }
+      const task = fulfillment.then(
+        (input) => {
+          if (generation === this.generation) {
+            this.completed.push({ status: 'fulfilled', request, input });
+          }
+        },
+        (error: unknown) => {
+          if (generation === this.generation) {
+            this.completed.push({ status: 'rejected', request, error });
+          }
+        },
+      );
       this.inFlight.add(task);
-      void task.finally(() => this.inFlight.delete(task));
+      void task.then(() => this.inFlight.delete(task));
     }
     return out;
   }
@@ -55,6 +80,7 @@ export class ModelRuntime<Request extends ModelRequest, Input> {
   }
 
   reset(): void {
+    this.generation += 1;
     this.dispatched.clear();
     this.completed.length = 0;
   }

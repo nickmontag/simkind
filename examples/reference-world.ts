@@ -4,6 +4,7 @@ import {
   evaluateCommitment,
   rankMemories,
   recordDecisionBatch,
+  type CapabilityDefinition,
   type DecisionRecord,
 } from '../src/index.js';
 
@@ -24,7 +25,7 @@ const capabilities = defineCapabilityCatalog({
   Move: { description: 'Move to a known place.', examples: ['Move to the grove'] },
   Speak: { description: 'Speak to a present character.', examples: ['Ask Mira about herbs'] },
   Gather: { description: 'Gather a present resource.', examples: ['Gather mint'] },
-});
+} satisfies Record<Action['kind'], CapabilityDefinition>);
 
 const runtime = createCharacterRuntime<World, { capabilities: typeof capabilities }, Action>({
   recordInputs(world, inputs) {
@@ -71,4 +72,3 @@ const goal = evaluateCommitment(
 );
 
 console.log(JSON.stringify({ world, recalled: memories.map((memory) => memory.id), goal }, null, 2));
-

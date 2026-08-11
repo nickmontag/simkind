@@ -1,3 +1,5 @@
+import { compareStrings } from './order.js';
+
 export interface EvaluationEvent {
   type: string;
   subtype?: string;
@@ -23,7 +25,7 @@ export function characterScorecard(
     invalidPlans: events.filter((event) => event.subtype === 'PLAN_INVALID').length,
     fallbacks: events.filter((event) => event.subtype === 'LLM_FALLBACK').length,
     capabilityKindsUsed: Object.fromEntries(
-      Object.entries(capabilityKindsUsed).sort(([a], [b]) => a.localeCompare(b)),
+      Object.entries(capabilityKindsUsed).sort(([a], [b]) => compareStrings(a, b)),
     ),
   };
 }

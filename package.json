@@ -4,18 +4,23 @@
   "private": true,
   "description": "Engine-authoritative runtime primitives for goal-driven LLM characters",
   "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist", "README.md", "docs"],
+  "files": ["dist", "README.md", "NOTICE.md", "docs"],
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "check": "npm run build && npm test",
+    "typecheck": "tsc -p tsconfig.check.json",
+    "check": "npm run build && npm run typecheck && npm test",
     "test": "vitest run",
-    "example": "tsx examples/reference-world.ts"
+    "example": "tsx examples/reference-world.ts",
+    "example:station": "tsx examples/station-world.ts"
   },
   "devDependencies": {
     "@types/node": "^26.1.1",

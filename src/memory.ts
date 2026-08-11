@@ -1,3 +1,5 @@
+import { compareStrings } from './order.js';
+
 export interface MemoryEvidence<Id extends string = string> {
   id: Id;
   text: string;
@@ -52,7 +54,7 @@ export function rankMemories<M extends MemoryEvidence>(
       (a, b) =>
         b.score - a.score ||
         b.memory.createdTick - a.memory.createdTick ||
-        a.memory.id.localeCompare(b.memory.id),
+        compareStrings(a.memory.id, b.memory.id),
     )
     .slice(0, query.limit ?? 48)
     .map(({ memory }) => memory);

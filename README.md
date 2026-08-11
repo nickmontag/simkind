@@ -10,7 +10,7 @@ The kernel owns stable policy and orchestration seams:
 - measurable commitment criteria and goal progress;
 - conversation lifecycle policy;
 - exact decision recording and replay inputs;
-- a non-blocking, provider-neutral model request runtime;
+- a non-blocking, provider-neutral model request runtime with correlated outcomes;
 - character lifecycle orchestration through a game adapter; and
 - focused evaluation counters.
 
@@ -46,6 +46,7 @@ world is intentionally tiny but executable:
 npm install
 npm run check
 npm run example
+npm run example:station
 ```
 
 ## Maturity
@@ -61,4 +62,3 @@ challenge them without importing Cozy Village concepts.
 - [Goals and memory](docs/goals-and-memory.md)
 - [Determinism and evaluation](docs/determinism-and-evaluation.md)
 - [Testing strategy](docs/testing.md)
-

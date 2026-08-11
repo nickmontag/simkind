@@ -40,6 +40,18 @@ function matchCriterion(
   }
 }
 
+function requiredMatches(criterion: GoalCriterion): number {
+  switch (criterion.kind) {
+    case 'memory':
+    case 'event':
+      return criterion.count;
+    case 'inventory':
+      return criterion.qty;
+    case 'relationship':
+      return 1;
+  }
+}
+
 export function evaluateCommitment(
   goal: Commitment,
   adapter: GoalEvidenceAdapter,
@@ -48,7 +60,7 @@ export function evaluateCommitment(
   const evidence: string[] = [];
   for (const criterion of goal.criteria) {
     const match = matchCriterion(criterion, adapter);
-    const required = 'count' in criterion ? criterion.count : 1;
+    const required = requiredMatches(criterion);
     if (match.matched >= required) {
       met += 1;
       evidence.push(...match.evidence.slice(0, required));

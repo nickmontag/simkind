@@ -23,7 +23,11 @@ export function createCharacterRuntime<World, Context, Input>(
       }
       return adapter.expireRequests(world, context);
     },
-    advanceInteractions: adapter.interactions,
-    advanceCognition: adapter.cognition,
+    advanceInteractions(world, context) {
+      return adapter.interactions(world, context);
+    },
+    advanceCognition(world, context) {
+      return adapter.cognition(world, context);
+    },
   };
 }
