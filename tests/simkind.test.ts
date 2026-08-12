@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   capabilityKinds,
-  characterScorecard,
+  simkinScorecard,
   conversationDirective,
-  createCharacterRuntime,
+  createSimkinRuntime,
   defineCapabilityCatalog,
   evaluateCommitment,
   rankMemories,
@@ -13,7 +13,7 @@ import {
   touchMemories,
 } from '../src/index.js';
 
-describe('living character kernel contracts', () => {
+describe('Simkind contracts', () => {
   it('keeps a typed capability catalog as the prompt source', () => {
     const catalog = defineCapabilityCatalog({
       Move: { description: 'Move.', examples: ['north'] },
@@ -128,7 +128,7 @@ describe('living character kernel contracts', () => {
 
   it('orchestrates only the declared lifecycle phases', () => {
     const calls: string[] = [];
-    const runtime = createCharacterRuntime<number, undefined, string>({
+    const runtime = createSimkinRuntime<number, undefined, string>({
       recordInputs: (world) => (calls.push('record'), world),
       applyInputs: (world) => (calls.push('apply'), world),
       expireRequests: (world) => (calls.push('expire'), world),
@@ -150,13 +150,13 @@ describe('living character kernel contracts', () => {
       interactions(world: number): number { return world + this.delta; }
       cognition(world: number): number { return world + this.delta; }
     }
-    const runtime = createCharacterRuntime<number, undefined, never>(new Adapter());
+    const runtime = createSimkinRuntime<number, undefined, never>(new Adapter());
     expect(runtime.advanceInteractions(1, undefined)).toBe(3);
     expect(runtime.advanceCognition(1, undefined)).toBe(3);
   });
 
   it('builds deterministic evaluation counters', () => {
-    expect(characterScorecard(
+    expect(simkinScorecard(
       [['Speak', 'Move'], ['Speak']],
       [{ type: 'plan', subtype: 'PLAN_INVALID' }, { type: 'model', subtype: 'LLM_FALLBACK' }],
     )).toEqual({

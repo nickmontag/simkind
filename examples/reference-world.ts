@@ -1,5 +1,5 @@
 import {
-  createCharacterRuntime,
+  createSimkinRuntime,
   defineCapabilityCatalog,
   evaluateCommitment,
   rankMemories,
@@ -27,7 +27,7 @@ const capabilities = defineCapabilityCatalog({
   Gather: { description: 'Gather a present resource.', examples: ['Gather mint'] },
 } satisfies Record<Action['kind'], CapabilityDefinition>);
 
-const runtime = createCharacterRuntime<World, { capabilities: typeof capabilities }, Action>({
+const runtime = createSimkinRuntime<World, { capabilities: typeof capabilities }, Action>({
   recordInputs(world, inputs) {
     return { ...world, decisions: recordDecisionBatch(world.decisions, world.tick, inputs) };
   },

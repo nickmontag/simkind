@@ -1,8 +1,8 @@
 {
-  "name": "living-character-kernel",
+  "name": "simkind",
   "version": "0.1.0",
   "private": true,
-  "description": "Engine-authoritative runtime primitives for goal-driven LLM characters",
+  "description": "Engine-authoritative cognition for living game characters",
   "type": "module",
   "engines": {
     "node": ">=18"

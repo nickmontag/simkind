@@ -6,8 +6,8 @@ Construction tests protect stable boundaries only:
 2. deterministic memory ranking;
 3. evidence-backed goal completion;
 4. exact decision ordering and replay;
-5. conversation lifecycle directives; and
-6. runtime phase ordering and class-adapter binding; and
+5. conversation lifecycle directives;
+6. simkin runtime phase ordering and class-adapter binding; and
 7. model dispatch priority, completion, failure, concurrency, and reset behavior.
 
 Every exported runtime value has at least one direct contract test. TypeScript

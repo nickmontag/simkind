@@ -5,17 +5,17 @@ export interface EvaluationEvent {
   subtype?: string;
 }
 
-export interface CharacterScorecard {
+export interface SimkinScorecard {
   decisions: number;
   invalidPlans: number;
   fallbacks: number;
   capabilityKindsUsed: Record<string, number>;
 }
 
-export function characterScorecard(
+export function simkinScorecard(
   decisionKinds: readonly (readonly string[])[],
   events: readonly EvaluationEvent[],
-): CharacterScorecard {
+): SimkinScorecard {
   const capabilityKindsUsed: Record<string, number> = {};
   for (const kinds of decisionKinds) {
     for (const kind of kinds) capabilityKindsUsed[kind] = (capabilityKindsUsed[kind] ?? 0) + 1;

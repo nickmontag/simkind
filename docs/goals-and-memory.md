@@ -6,7 +6,7 @@ Use a `north_star` for subjective direction: identity, aspiration, or a desire
 whose resolution requires reflection. Use a `commitment` for a promise the
 engine can measure. A commitment should contain explicit evidence criteria.
 
-The kernel supports criteria backed by memories, events, inventory, and
+Simkind supports criteria backed by memories, events, inventory, and
 relationships. The host implements `GoalEvidenceAdapter`, because only the
 host knows how those records live in its world.
 
@@ -26,4 +26,4 @@ request—not merely considered during retrieval.
 
 Model contexts should receive structured evidence, including memory IDs and
 provenance, rather than an untraceable prose summary. Limit evidence sharply;
-more context is not automatically better character reasoning.
+more context is not automatically better simkin reasoning.

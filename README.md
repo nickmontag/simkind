@@ -1,9 +1,11 @@
-# Living Character Kernel
+# Simkind
 
-A small, game-agnostic TypeScript kernel for characters whose decisions may
-come from an LLM while the game engine remains authoritative.
+Engine-authoritative cognition for living game characters.
 
-The kernel owns stable policy and orchestration seams:
+Each simulated character is a **simkin**; collectively, they are **simkind**.
+Their decisions may come from an LLM, but the host game remains authoritative.
+
+Simkind owns stable policy and orchestration seams:
 
 - an engine-owned capability catalog used by prompts and validation;
 - deterministic, evidence-ranked memory retrieval;
@@ -11,7 +13,7 @@ The kernel owns stable policy and orchestration seams:
 - conversation lifecycle policy;
 - exact decision recording and replay inputs;
 - a non-blocking, provider-neutral model request runtime with correlated outcomes;
-- character lifecycle orchestration through a game adapter; and
+- simkin lifecycle orchestration through a game adapter; and
 - focused evaluation counters.
 
 It deliberately does **not** own maps, pathfinding, inventories, combat,
@@ -32,10 +34,10 @@ world snapshot -> game adapter -> model request -> proposed decision
 
 ```ts
 import {
-  createCharacterRuntime,
+  createSimkinRuntime,
   defineCapabilityCatalog,
   rankMemories,
-} from 'living-character-kernel';
+} from 'simkind';
 ```
 
 See [the integration guide](docs/integration.md) and
@@ -51,7 +53,7 @@ npm run example:station
 
 ## Maturity
 
-Version `0.1.0` is an extraction boundary, not a frozen universal agent API.
+Version `0.1.0` is an extraction boundary, not a frozen universal simkin API.
 The exported interfaces are intentionally narrow so additional games can
 challenge them without importing Cozy Village concepts.
 

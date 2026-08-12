@@ -1,4 +1,4 @@
-export interface CharacterRuntimeAdapter<World, Context, Input> {
+export interface SimkinRuntimeAdapter<World, Context, Input> {
   recordInputs(world: World, inputs: readonly Input[]): World;
   applyInputs(world: World, context: Context, inputs: readonly Input[]): World;
   expireRequests(world: World, context: Context): World;
@@ -6,15 +6,15 @@ export interface CharacterRuntimeAdapter<World, Context, Input> {
   cognition(world: World, context: Context): World;
 }
 
-export interface CharacterRuntime<World, Context, Input> {
+export interface SimkinRuntime<World, Context, Input> {
   applyInputs(world: World, context: Context, inputs: readonly Input[]): World;
   advanceInteractions(world: World, context: Context): World;
   advanceCognition(world: World, context: Context): World;
 }
 
-export function createCharacterRuntime<World, Context, Input>(
-  adapter: CharacterRuntimeAdapter<World, Context, Input>,
-): CharacterRuntime<World, Context, Input> {
+export function createSimkinRuntime<World, Context, Input>(
+  adapter: SimkinRuntimeAdapter<World, Context, Input>,
+): SimkinRuntime<World, Context, Input> {
   return {
     applyInputs(world, context, inputs) {
       if (inputs.length > 0) {

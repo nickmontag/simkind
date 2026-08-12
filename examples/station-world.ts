@@ -1,5 +1,5 @@
 import {
-  createCharacterRuntime,
+  createSimkinRuntime,
   defineCapabilityCatalog,
   ModelRuntime,
   recordDecisionBatch,
@@ -13,7 +13,7 @@ type Intent =
   | { kind: 'Broadcast'; message: string };
 
 interface StationRequest extends ModelRequest {
-  characterId: string;
+  simkinId: string;
 }
 
 interface ModelInput {
@@ -80,7 +80,7 @@ const request: StationRequest = {
   id: 'station-request:1',
   priority: 10,
   issuedAtTick: 4,
-  characterId: 'engineer-aya',
+  simkinId: 'engineer-aya',
 };
 const model = new ModelRuntime<StationRequest, ModelInput>(async (pending) => ({
   requestId: pending.id,
@@ -93,7 +93,7 @@ const inputs = model.poll([]).flatMap((completion) =>
   completion.status === 'fulfilled' ? [completion.input] : [],
 );
 
-const runtime = createCharacterRuntime<StationWorld, typeof capabilities, ModelInput>(
+const runtime = createSimkinRuntime<StationWorld, typeof capabilities, ModelInput>(
   new StationAdapter(),
 );
 let world: StationWorld = {

@@ -1,5 +1,9 @@
 # Host-game integration
 
+Each simulated character is a simkin, but Simkind does not prescribe a
+canonical simkin record. Identity, traits, world state, and persistence remain
+owned by the host game.
+
 ## 1. Define the legal action vocabulary
 
 Create an engine-owned intent union and runtime schema. Then define a complete
@@ -12,11 +16,11 @@ preserves the narrower literal type but cannot infer a separate host intent
 union by itself.
 
 The catalog answers “what can this engine express?” Contextual affordances and
-the executor answer “what is legal for this Character right now?”
+the executor answer “what is legal for this simkin right now?”
 
 ## 2. Implement the runtime adapter
 
-Implement `CharacterRuntimeAdapter<World, Context, Input>`:
+Implement `SimkinRuntimeAdapter<World, Context, Input>`:
 
 - `recordInputs`: append exact tick-ordered inputs and optional request context;
 - `applyInputs`: validate request identity and apply inputs;
@@ -24,7 +28,7 @@ Implement `CharacterRuntimeAdapter<World, Context, Input>`:
 - `interactions`: advance generic social state plus game hooks; and
 - `cognition`: update goals, memory/reflection, and enqueue new requests.
 
-Construct the runtime once with `createCharacterRuntime`. Call it from the
+Construct the runtime once with `createSimkinRuntime`. Call it from the
 engine tick at the documented lifecycle seams.
 
 ## 3. Keep model work asynchronous
@@ -44,7 +48,7 @@ older work continues to occupy concurrency until it settles.
 
 Story rules such as a scripted opening, quest handoff, archive consultation,
 or village ritual belong in the game adapter. They may decorate generic
-conversation behavior without becoming kernel dependencies.
+conversation behavior without becoming Simkind dependencies.
 
 ## 5. Persist the decision ledger
 
