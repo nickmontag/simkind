@@ -2,9 +2,10 @@
 
 ## Authority boundary
 
-Simkind coordinates a simkin's cognition; the host engine owns truth. Model
-output is always untrusted input. A host validates its schema, checks contextual
-legality, resolves outcomes, mutates world state, and emits events.
+Simkind coordinates an LLM-driven simkin's cognition; the host simulation
+owns truth. Model output is always untrusted input. A host validates its schema,
+checks contextual legality, resolves outcomes, mutates world state, and emits
+events.
 
 ## Modules and seams
 
@@ -17,7 +18,7 @@ legality, resolves outcomes, mutates world state, and emits events.
 | Runtime | Stable lifecycle ordering | Each phase through `SimkinRuntimeAdapter` |
 | Model runtime | Async dispatch, priority, request-correlated outcome polling | Provider, prompt, schema parsing, retry, fallback |
 | Decisions | Exact input ledger and tick replay | Input type, request snapshot, persistence |
-| Evaluation | Small stable counters | Game-specific quality rubric and later soak scenarios |
+| Evaluation | Small stable counters | Simulation-specific quality rubric and later soak scenarios |
 | Host helpers | Validation, explicit outcomes, completion fallback, tick ordering | Contextual legality and action effects |
 
 The deepest seam is `SimkinRuntimeAdapter`. It lets the engine call three
@@ -31,17 +32,17 @@ applyInputs
   record exact decisions -> apply valid inputs -> expire requests/fallbacks
 
 advanceInteractions
-  conversations -> game story hooks -> proposals
+  conversations -> host event hooks -> proposals
 
 host engine phase
-  movement / combat / perception / other procedural consequences
+  movement / resource changes / perception / other procedural consequences
 
 advanceCognition
   motives -> urges -> criteria-backed goals -> reflection -> memory -> planning
 ```
 
 The split around the host phase is deliberate: a simkin can interact before
-combat and perception resolve, then deliberate from the resulting world.
+world updates and perception resolve, then deliberate from the resulting world.
 
 ## Design constraints
 
@@ -52,5 +53,5 @@ combat and perception resolve, then deliberate from the resulting world.
 - Retrieval and replay ordering have explicit deterministic tie breakers.
 - Provider failures are returned as ordinary model outcomes rather than unhandled promises.
 - Applied, rejected, and fallback outcomes can be attached to their exact decision records.
-- Story-specific behavior enters through adapters or hooks, never generic
+- Domain-specific behavior enters through adapters or hooks, never generic
   conversation code.

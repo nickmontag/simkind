@@ -1,15 +1,16 @@
 # Simkind
 
-An experimental TypeScript toolkit for game characters that remember events,
-pursue commitments, and request decisions from language models. Your game
-controls which actions are allowed and what actually happens.
+A TypeScript toolkit for **LLM-driven simulated characters** that remember
+events, pursue commitments, and act within a world governed by a host simulation.
+Use it for simulations, including games: language models propose character
+actions, and the host controls which actions are allowed and what happens.
 
 Each character is a **simkin**; collectively, they are **simkind**.
 
 For example, Aya remembers a promise to bring Mira mint. A model can propose
-moving, gathering, and giving, but the game checks each action and only marks
+moving, gathering, and giving, but the simulation checks each action and only marks
 the promise complete when the mint actually changes hands. Recorded decisions
-let the game replay the same sequence without calling the model again.
+let the simulation replay the same sequence without calling the model again.
 
 ## Try it locally
 
@@ -48,10 +49,10 @@ a provider failure with scripted fallbacks, and prints `replayMatched: true`.
 The central rule is: **the model proposes; the engine validates, executes, and
 records.** Your host supplies world state, action schemas and executors, prompts,
 model providers, timeout policies, and persistence. Simkind does not include a
-game engine, renderer, pathfinding system, or turnkey autonomous character.
+simulation engine, renderer, pathfinding system, or turnkey autonomous character.
 
 ```text
-world snapshot -> game adapter -> model request -> proposed decision
+world snapshot -> host adapter -> model request -> proposed decision
       ^                                               |
       +-------- validate / execute / record <---------+
 ```
@@ -122,7 +123,7 @@ The settlement demo is an isolated prototype.
 ## Documentation and contributing
 
 - [Architecture](docs/architecture.md)
-- [Host-game integration](docs/integration.md)
+- [Host simulation integration](docs/integration.md)
 - [Goals and memory](docs/goals-and-memory.md)
 - [Determinism and evaluation](docs/determinism-and-evaluation.md)
 - [Testing strategy](docs/testing.md)

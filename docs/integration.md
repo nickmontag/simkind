@@ -1,8 +1,8 @@
-# Host-game integration
+# Host simulation integration
 
 Each simulated character is a simkin, but Simkind does not prescribe a
 canonical simkin record. Identity, traits, world state, and persistence remain
-owned by the host game.
+owned by the host simulation, whether it is a game or another simulated world.
 
 ## 1. Define the legal action vocabulary
 
@@ -25,7 +25,7 @@ Implement `SimkinRuntimeAdapter<World, Context, Input>`:
 - `recordInputs`: append exact tick-ordered inputs and optional request context;
 - `applyInputs`: validate request identity and apply inputs;
 - `expireRequests`: produce deterministic fallbacks when appropriate;
-- `interactions`: advance generic social state plus game hooks; and
+- `interactions`: advance generic social state plus host hooks; and
 - `cognition`: update goals, memory/reflection, and enqueue new requests.
 
 Construct the runtime once with `createSimkinRuntime`. Call it from the
@@ -55,10 +55,10 @@ provider work becomes a `provider-error` fallback, and output rejected by the
 host parser becomes an `invalid-output` fallback. Timeouts remain host policy
 because only the host owns simulation time.
 
-## 4. Add a game adapter
+## 4. Add simulation-specific behavior
 
-Story rules such as a scripted opening, quest handoff, archive consultation,
-or village ritual belong in the game adapter. They may decorate generic
+Domain rules such as work schedules, resource exchanges, social rituals, or
+scripted events belong in the host adapter. They may decorate generic
 conversation behavior without becoming Simkind dependencies.
 
 ## 5. Persist the decision ledger

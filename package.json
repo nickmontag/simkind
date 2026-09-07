@@ -2,7 +2,7 @@
   "name": "simkind",
   "version": "0.1.0",
   "private": true,
-  "description": "Engine-authoritative cognition for living game characters",
+  "description": "TypeScript toolkit for LLM-driven simulated characters: memory, commitments, asynchronous decisions, and deterministic replay.",
   "type": "module",
   "engines": {
     "node": ">=22.12.0"

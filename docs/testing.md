@@ -13,8 +13,8 @@ Construction tests protect stable boundaries only:
 Every exported runtime value has at least one direct contract test. TypeScript
 also checks source, tests, and executable examples as part of `npm run check`.
 
-Host games add a few targeted adapter tests proving their intent schema,
-executor, request lifecycle, and story hooks connect correctly. Avoid broad
+Host simulations add a few targeted adapter tests proving their intent schema,
+executor, request lifecycle, and domain hooks connect correctly. Avoid broad
 behavioral snapshots while prompts, goals, and content are moving quickly.
 
 The executable two-simkin scenario is the integration tracer bullet. It runs

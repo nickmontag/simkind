@@ -21,7 +21,7 @@ It checks the Git index, including staged content, for environment files and
 common credential patterns without printing matching values. This is a focused
 safeguard, not a complete secret scanner. CI runs it on every push and PR.
 
-Keep game-specific rules in examples or demos. Changes to core should explain
+Keep simulation-specific rules in examples or demos. Changes to core should explain
 which host contract they improve and include a focused regression test when
 behavior changes. Add or update documentation when public behavior changes.
 Keep live-provider tests opt-in: they cost money and are nondeterministic.
