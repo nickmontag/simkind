@@ -31,6 +31,12 @@ Implement `SimkinRuntimeAdapter<World, Context, Input>`:
 Construct the runtime once with `createSimkinRuntime`. Call it from the
 engine tick at the documented lifecycle seams.
 
+`advanceSimkinTick` provides the standard apply → interactions → host →
+cognition ordering. `executeHostInputs` runs host-owned contextual validation
+before each mutation and returns an explicit `applied`, `rejected`, or
+`fallback` outcome. Attach those outcomes with `recordDecisionOutcomes` so
+replay and evaluation can distinguish a proposed action from a world mutation.
+
 ## 3. Keep model work asynchronous
 
 Build immutable request contexts from engine state. Send them to a provider
@@ -43,6 +49,11 @@ prompting, validation, retries, and fallback content to the host.
 retry policy remains explicit in the host. `reset` starts a new generation and
 ignores completions from older work. It cannot cancel provider promises, and
 older work continues to occupy concurrency until it settles.
+
+`resolveModelCompletion` centralizes two ordinary degradation cases: rejected
+provider work becomes a `provider-error` fallback, and output rejected by the
+host parser becomes an `invalid-output` fallback. Timeouts remain host policy
+because only the host owns simulation time.
 
 ## 4. Add a game adapter
 

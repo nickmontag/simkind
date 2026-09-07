@@ -3,6 +3,7 @@ export * from './conversation.js';
 export * from './decisions.js';
 export * from './evaluation.js';
 export * from './goals.js';
+export * from './host.js';
 export * from './memory.js';
 export * from './model-runtime.js';
 export * from './runtime.js';

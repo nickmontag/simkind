@@ -1,11 +1,12 @@
 import { compareStrings } from './order.js';
 
-export interface DecisionRecord<Input, Request = unknown> {
+export interface DecisionRecord<Input, Request = unknown, Outcome = unknown> {
   id: string;
   appliedTick: number;
   order: number;
   input: Input;
   request?: Request;
+  outcome?: Outcome;
 }
 
 function assertTick(tick: number): void {
@@ -14,14 +15,14 @@ function assertTick(tick: number): void {
   }
 }
 
-function validatedRecordsForTick<Input, Request>(
-  records: readonly DecisionRecord<Input, Request>[],
+function validatedRecordsForTick<Input, Request, Outcome>(
+  records: readonly DecisionRecord<Input, Request, Outcome>[],
   tick: number,
-): DecisionRecord<Input, Request>[] {
+): DecisionRecord<Input, Request, Outcome>[] {
   assertTick(tick);
   const ids = new Set<string>();
   const orders = new Set<number>();
-  const matching: DecisionRecord<Input, Request>[] = [];
+  const matching: DecisionRecord<Input, Request, Outcome>[] = [];
   for (const record of records) {
     if (ids.has(record.id)) throw new Error(`duplicate decision id: ${record.id}`);
     ids.add(record.id);
@@ -38,12 +39,12 @@ function validatedRecordsForTick<Input, Request>(
   return matching;
 }
 
-export function recordDecisionBatch<Input, Request = unknown>(
-  existing: readonly DecisionRecord<Input, Request>[],
+export function recordDecisionBatch<Input, Request = unknown, Outcome = unknown>(
+  existing: readonly DecisionRecord<Input, Request, Outcome>[],
   tick: number,
   inputs: readonly Input[],
   requestFor?: (input: Input) => Request | undefined,
-): DecisionRecord<Input, Request>[] {
+): DecisionRecord<Input, Request, Outcome>[] {
   const recordsAtTick = validatedRecordsForTick(existing, tick);
   const offset = recordsAtTick.reduce((highest, record) => Math.max(highest, record.order), -1) + 1;
   const added = inputs.map((input, index) => {
@@ -68,4 +69,26 @@ export function replayInputsForTick<Input, Request = unknown>(
   return validatedRecordsForTick(records, tick)
     .sort((a, b) => a.order - b.order || compareStrings(a.id, b.id))
     .map((record) => structuredClone(record.input));
+}
+
+export function recordDecisionOutcomes<Input, Request, Outcome>(
+  records: readonly DecisionRecord<Input, Request, Outcome>[],
+  tick: number,
+  outcomes: readonly Outcome[],
+): DecisionRecord<Input, Request, Outcome>[] {
+  const unresolved = validatedRecordsForTick(records, tick)
+    .filter((record) => record.outcome === undefined)
+    .sort((a, b) => a.order - b.order || compareStrings(a.id, b.id));
+  if (unresolved.length !== outcomes.length) {
+    throw new Error(
+      `decision outcome count mismatch at tick ${tick}: ${unresolved.length} unresolved decisions, ${outcomes.length} outcomes`,
+    );
+  }
+  const outcomeById = new Map(
+    unresolved.map((record, index) => [record.id, structuredClone(outcomes[index])]),
+  );
+  return records.map((record) => {
+    const outcome = outcomeById.get(record.id);
+    return outcome === undefined ? record : { ...record, outcome };
+  });
 }

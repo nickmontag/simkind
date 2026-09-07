@@ -8,6 +8,7 @@ import {
   evaluateCommitment,
   rankMemories,
   recordDecisionBatch,
+  recordDecisionOutcomes,
   renderCapabilityPrompt,
   replayInputsForTick,
   touchMemories,
@@ -116,6 +117,19 @@ describe('Simkind contracts', () => {
     request.prompt[0] = 'mutated';
     expect(records[0].input).toEqual({ kind: 'Move', target: { x: 1 } });
     expect(records[0].request).toEqual({ prompt: ['original'] });
+  });
+
+  it('records execution outcomes against the unresolved decisions for a tick', () => {
+    const decisions = recordDecisionBatch([], 3, ['move', 'gather']);
+    const resolved = recordDecisionOutcomes(decisions, 3, [
+      { status: 'applied' as const },
+      { status: 'rejected' as const, reason: 'resource missing' },
+    ]);
+
+    expect(resolved.map((decision) => decision.outcome)).toEqual([
+      { status: 'applied' },
+      { status: 'rejected', reason: 'resource missing' },
+    ]);
   });
 
   it('keeps conversation closure procedural', () => {

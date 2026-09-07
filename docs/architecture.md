@@ -18,6 +18,7 @@ legality, resolves outcomes, mutates world state, and emits events.
 | Model runtime | Async dispatch, priority, request-correlated outcome polling | Provider, prompt, schema parsing, retry, fallback |
 | Decisions | Exact input ledger and tick replay | Input type, request snapshot, persistence |
 | Evaluation | Small stable counters | Game-specific quality rubric and later soak scenarios |
+| Host helpers | Validation, explicit outcomes, completion fallback, tick ordering | Contextual legality and action effects |
 
 The deepest seam is `SimkinRuntimeAdapter`. It lets the engine call three
 cohesive operations without knowing the internal sequence of request expiry,
@@ -50,5 +51,6 @@ combat and perception resolve, then deliberate from the resulting world.
   to describe the legal action vocabulary.
 - Retrieval and replay ordering have explicit deterministic tie breakers.
 - Provider failures are returned as ordinary model outcomes rather than unhandled promises.
+- Applied, rejected, and fallback outcomes can be attached to their exact decision records.
 - Story-specific behavior enters through adapters or hooks, never generic
   conversation code.

@@ -5,7 +5,7 @@
   "description": "Engine-authoritative cognition for living game characters",
   "type": "module",
   "engines": {
-    "node": ">=18"
+    "node": ">=22.12.0"
   },
   "exports": {
     ".": {
@@ -13,19 +13,41 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist", "README.md", "NOTICE.md", "docs"],
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md",
+    "NOTICE.md",
+    "docs"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.check.json",
     "check": "npm run build && npm run typecheck && npm test",
+    "prepare": "npm run build",
     "test": "vitest run",
+    "demo": "tsx examples/two-simkins-demo.ts",
+    "demo:openrouter": "tsx examples/openrouter-demo.ts",
+    "demo:openrouter:soak": "tsx examples/openrouter-village-demo.ts",
+    "demo:soak": "tsx examples/village-soak-demo.ts",
+    "demo:settlement": "npm run build --silent && tsx demos/settlement-crisis/cli.ts",
     "example": "tsx examples/reference-world.ts",
-    "example:station": "tsx examples/station-world.ts"
+    "example:station": "tsx examples/station-world.ts",
+    "check:public": "node scripts/check-public-files.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.1.1",
     "tsx": "^4.23.1",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"
-  }
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nickmibarra/simkind.git"
+  },
+  "bugs": {
+    "url": "https://github.com/nickmibarra/simkind/issues"
+  },
+  "homepage": "https://github.com/nickmibarra/simkind#readme"
 }

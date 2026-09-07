@@ -1,5 +1,4 @@
 # Notice
 
-Simkind was extracted from the living-character architecture developed inside
-Cozy Village. Before public distribution, choose a license and audit third-party
-attribution requirements for any future copied material.
+Simkind is copyright (c) 2026 Nick Ibarra and is distributed under the
+[MIT License](LICENSE). Third-party dependencies retain their own licenses.
