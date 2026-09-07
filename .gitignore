@@ -12,3 +12,7 @@ coverage/
 
 # Private planning, research, and temporary artifacts
 /.internal/
+
+# Independent reader bytecode
+__pycache__/
+*.py[cod]

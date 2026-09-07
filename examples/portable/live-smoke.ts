@@ -1,0 +1,28 @@
+import { readFile, mkdir } from 'node:fs/promises';
+import { parseEnv, parseArgs } from 'node:util';
+import { randomUUID } from 'node:crypto';
+import { resolve } from 'node:path';
+import { loadScenario, resolveSources, saveRun } from 'simkind/node';
+import { createCharacterRunner, compareRuns } from 'simkind/runner';
+import { openRouterConnection } from 'simkind/providers';
+import { conversationHost } from './hosts/conversation.js';
+const { values } = parseArgs({ options: { model: { type: 'string' }, output: { type: 'string' } } });
+if (!values.model) throw new Error('Supply an explicit --model.');
+const env = { ...parseEnv(await readFile('.env', 'utf8')), ...process.env };
+const loaded = await loadScenario('examples/portable/scenarios', 'shared-decision.json', 'config-continuity.json');
+if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
+const sources = loaded.value.sources;
+const config = JSON.parse(sources['config-continuity.json']); config.limits.maxRequests = 3; config.limits.maxSteps = 1; config.limits.requestTimeoutMs = 60000;
+sources['config-continuity.json'] = JSON.stringify(config, null, 2) + '\n';
+const bundle = resolveSources(sources, 'shared-decision.json', 'config-continuity.json'); if (!bundle.ok) throw new Error('Live smoke source resolution failed.');
+const primary = openRouterConnection(env.OPENROUTER_API_KEY ?? '', values.model, { maxOutputTokens: 256 });
+const created = createCharacterRunner(bundle.value, conversationHost, { primary }, `run:${randomUUID()}`); if (!created.ok) throw new Error(JSON.stringify(created.diagnostics));
+const runner = created.value;
+runner.step(); await runner.settleDecisions();
+const directory = values.output ?? resolve('.internal/live-smoke', `sample-${randomUUID()}`);
+await mkdir(resolve(directory, '..'), { recursive: true });
+const status = runner.status();
+const checkpoints = !status.pendingRequests && !status.activeProviders && !status.unresolvedActions ? [runner.checkpoint()] : [];
+await saveRun(directory, runner.manifest(), runner.events(), bundle.value, checkpoints);
+console.log(JSON.stringify({ directory, model: values.model, status, operational: compareRuns(runner.events(), []).left,
+  results: runner.events().filter(e => ['model-result', 'model-error', 'model-timeout', 'action'].includes(e.type)) }, null, 2));

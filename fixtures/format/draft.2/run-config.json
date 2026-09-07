@@ -1,0 +1,30 @@
+{
+  "specVersion": "0.2.0-draft.2",
+  "kind": "run-config",
+  "id": "config:portable",
+  "profiles": {
+    "simkind.memory-retrieval": {
+      "version": "0.1.0",
+      "required": true
+    }
+  },
+  "modelAssignments": {
+    "simkin:aya": "primary",
+    "simkin:mira": "primary",
+    "simkin:sol": "primary"
+  },
+  "features": {
+    "simkind.memory-retrieval": {
+      "enabled": true,
+      "config": {
+        "maxItems": 8
+      }
+    }
+  },
+  "limits": {
+    "maxRequests": 12,
+    "maxInFlight": 3,
+    "maxSteps": 8,
+    "requestTimeoutMs": 30000
+  }
+}

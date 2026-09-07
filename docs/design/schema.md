@@ -1,11 +1,19 @@
 # Simkind Format: Phase 2 schema architecture
 
+Current alpha implementation and remaining scope are summarized in
+[the release report](../release-alpha.md). This design remains a broader contributor
+reference; current guides take precedence for supported commands and capabilities.
+
 Status: draft design. Audience: contributors designing future releases.
 
-This is not an implemented or published standard. Examples use
-`0.2.0-draft.1` as a proposed format revision; it is independent of the npm
-package version. Field names are recommended design targets until schemas and
-conformance fixtures are implemented together.
+This is not a published standard. M1/M2 now implement the six document kinds in
+`0.2.0-draft.2`; see the [current guide](../portable-scenarios.md) and
+[schema](../../schemas/0.2.0-draft.2/document.schema.json) for exact supported fields.
+The original [draft.1 character subset](../character-format.md) remains readable.
+Examples below retain their original draft.1 design notation and are illustrative,
+not complete launch bundles. Broader profile, intervention, interoperability,
+and replay semantics remain Phase 2 proposals. Format and package versions are
+independent.
 
 See the [roadmap](../../roadmap.md), [host protocol](host-protocol.md),
 [authoring experience](playground.md), and
@@ -46,8 +54,10 @@ JSONL is a storage representation, not an alternative event vocabulary.
 ### Precise Markdown mapping
 
 The first line is exactly a `simkind` code fence. Its contents are one JSON
-metadata object; the closing fence is a standalone line. The remaining bytes
-after that line's newline are the Markdown value of `persona.description`.
+metadata object; the closing fence is a standalone line. LF and CRLF delimiters
+are accepted. If the closing line has a newline, the remaining bytes are the
+Markdown value of `persona.description`, including an empty string. A closing
+fence at EOF without a following newline means the description is absent.
 Do not infer fields from headings or ask an LLM to interpret the document.
 
 ````markdown
@@ -67,7 +77,7 @@ people who have helped her. She speaks directly and uses dry humor.
 ````
 
 The metadata must not also contain `persona.description`; reject that conflict.
-An absent `persona` is created during conversion. Preserve body text, including
+An absent `persona` is created only when a body is present. Preserve body text, including
 line breaks. JSON-to-Markdown removes only `persona.description` from metadata
 and emits it as the body. Round-trip data equality is required; preservation of
 JSON indentation/key ordering is not. Leading malformed metadata is an error,

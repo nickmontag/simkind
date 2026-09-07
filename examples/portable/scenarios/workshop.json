@@ -1,0 +1,55 @@
+{
+  "specVersion": "0.2.0-draft.2",
+  "kind": "scenario",
+  "id": "scenario:workshop",
+  "resources": {
+    "character:aya": {
+      "path": "characters/aya.simkind.json"
+    },
+    "character:mira": {
+      "path": "characters/mira.simkind.json"
+    },
+    "character:sol": {
+      "path": "characters/sol.simkind.json"
+    },
+    "catalog:conversation": {
+      "path": "tools/conversation.json"
+    }
+  },
+  "host": {
+    "contractId": "example.conversation",
+    "version": "1.0.0"
+  },
+  "cast": [
+    {
+      "instanceId": "simkin:aya",
+      "characterRef": "character:aya"
+    },
+    {
+      "instanceId": "simkin:mira",
+      "characterRef": "character:mira"
+    },
+    {
+      "instanceId": "simkin:sol",
+      "characterRef": "character:sol"
+    }
+  ],
+  "toolCatalogRef": "catalog:conversation",
+  "initialConditions": {
+    "sharedContext": "The shared workshop has become crowded. Discuss a rule for access; disagreements and alternative suggestions are welcome.",
+    "options": [
+      "open-access",
+      "reservations",
+      "trial-week"
+    ]
+  },
+  "recommendations": {
+    "features": {
+      "simkind.memory-retrieval": {
+        "config": {
+          "maxItems": 6
+        }
+      }
+    }
+  }
+}

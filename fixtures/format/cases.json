@@ -1,0 +1,11 @@
+[
+  { "id": "F01", "input": "minimal.simkind.json", "representation": "json", "expected": { "ok": true }, "rationale": "Identity has no required body, model, traits, or planner." },
+  { "id": "F02", "input": "aya.simkind.md", "representation": "markdown", "equivalent": "aya.simkind.json", "expected": { "ok": true }, "rationale": "Prose is preserved exactly and metadata supplies explicit fields." },
+  { "id": "F03", "input": "description-conflict.simkind.md", "representation": "markdown", "expected": { "ok": false, "stage": "parse", "code": "DESCRIPTION_CONFLICT", "pointer": "/persona/description" }, "rationale": "A resource has one authoritative description." },
+  { "id": "F04", "input": "unknown-field.simkind.json", "representation": "json", "expected": { "ok": false, "stage": "structural", "code": "UNKNOWN_FIELD", "pointer": "/persona/motivaton" }, "rationale": "Typos in core fields are not extensions." },
+  { "id": "F05", "input": "optional-profile.simkind.json", "representation": "json", "expected": { "ok": true }, "supportedProfiles": {}, "rationale": "Unknown optional JSON survives conversion without execution." },
+  { "id": "F06", "input": "required-profile.simkind.json", "representation": "json", "expected": { "ok": true }, "supportedProfiles": {}, "compatibilityCode": "UNSUPPORTED_REQUIRED_PROFILE", "rationale": "An editor can retain data that fails the required-profile gate." },
+  { "id": "F09-key", "input": "duplicate-key.simkind.json", "representation": "json", "expected": { "ok": false, "stage": "parse", "code": "DUPLICATE_KEY", "pointer": "/name" }, "rationale": "Escaped keys compare by decoded value." },
+  { "id": "F09-resource", "input": "duplicate-resource.simkind.json", "representation": "json", "expected": { "ok": false, "stage": "parse", "code": "DUPLICATE_KEY", "pointer": "/resources/character:mira" }, "rationale": "Duplicate resource IDs cannot select a last-value winner." },
+  { "id": "F10", "input": "path-escape.simkind.json", "representation": "json", "expected": { "ok": false, "stage": "semantic", "code": "INVALID_RESOURCE_PATH", "pointer": "/resources/character:mira/path" }, "rationale": "Reject traversal before any resource access." }
+]

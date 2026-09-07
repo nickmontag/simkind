@@ -42,7 +42,7 @@ function promptFor(request: ScenarioRequest): string {
     `Mint remaining in grove: ${snapshot.groveMint}`,
     `Mira's place: ${snapshot.miraPlace}`,
     `Promise complete: ${snapshot.commitmentComplete}`,
-    `Recalled memory IDs: ${snapshot.recalledMemoryIds.join(', ') || 'none'}`,
+    `Recalled memory evidence: ${JSON.stringify(snapshot.recalledMemories ?? [])}`,
     'Choose exactly one legal intent.',
     'Move: to must be square or grove; item must be none.',
     'Gather: only useful at the grove when mint remains; to must be none; item must be mint.',

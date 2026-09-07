@@ -1,0 +1,55 @@
+{
+  "specVersion": "0.2.0-draft.2",
+  "kind": "scenario",
+  "id": "scenario:shared-decision",
+  "resources": {
+    "character:aya": {
+      "path": "characters/aya.simkind.json"
+    },
+    "character:mira": {
+      "path": "characters/mira.simkind.json"
+    },
+    "character:sol": {
+      "path": "characters/sol.simkind.json"
+    },
+    "catalog:conversation": {
+      "path": "tools/conversation.json"
+    }
+  },
+  "host": {
+    "contractId": "example.conversation",
+    "version": "1.0.0"
+  },
+  "cast": [
+    {
+      "instanceId": "simkin:aya",
+      "characterRef": "character:aya"
+    },
+    {
+      "instanceId": "simkin:mira",
+      "characterRef": "character:mira"
+    },
+    {
+      "instanceId": "simkin:sol",
+      "characterRef": "character:sol"
+    }
+  ],
+  "toolCatalogRef": "catalog:conversation",
+  "initialConditions": {
+    "sharedContext": "A small group must choose how to use a grant. Discuss tradeoffs and record a vote when you wish. You may revise your vote or decline to vote.",
+    "options": [
+      "workshop",
+      "garden",
+      "save"
+    ]
+  },
+  "recommendations": {
+    "features": {
+      "simkind.memory-retrieval": {
+        "config": {
+          "maxItems": 6
+        }
+      }
+    }
+  }
+}

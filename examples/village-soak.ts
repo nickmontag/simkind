@@ -39,6 +39,8 @@ export interface VillageRequest extends ModelRequest {
     groveMint: number;
     otherPlace: Place;
     recalledMemoryIds: string[];
+    /** Full supplied evidence; optional for historical saved requests. */
+    recalledMemories?: MemoryEvidence[];
     ayaKnowsMintLocation: boolean;
     ayaPromiseComplete: boolean;
     miraTeaGoalComplete: boolean;
@@ -103,6 +105,8 @@ export interface VillageSoakReport {
   lateCompletionsRejected: number;
   rejectionReasons: Record<string, number>;
   conversationMemoriesCreated: number;
+  recalledMemoryDecisions: number;
+  /** @deprecated Co-occurrence only; use recalledMemoryDecisions. */
   memoryInfluencedDecisions: number;
   repeatedActions: number;
   stalledTicks: number;
@@ -255,6 +259,7 @@ function enqueueRequests(world: VillageWorld): VillageWorld {
         groveMint: world.groveMint,
         otherPlace: world.simkins[simkinId === 'aya' ? 'mira' : 'aya'].place,
         recalledMemoryIds: recalled.map((memory) => memory.id),
+        recalledMemories: structuredClone(recalled),
         ayaKnowsMintLocation: world.simkins.aya.memories.some(
           (memory) => memory.tags.includes('mint') && memory.tags.includes('location'),
         ),
@@ -770,6 +775,7 @@ function coreEvaluationReport(baseline: RunResult): VillageLiveReport {
     lateCompletionsRejected: rejectionReasons['request no longer pending'] ?? 0,
     rejectionReasons,
     conversationMemoriesCreated: conversationMemories.length,
+    recalledMemoryDecisions: memoryInfluencedDecisions,
     memoryInfluencedDecisions,
     repeatedActions,
     stalledTicks,

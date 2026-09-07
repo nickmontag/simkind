@@ -31,6 +31,8 @@ export interface ScenarioRequest extends ModelRequest {
     miraPlace: Place;
     commitmentComplete: boolean;
     recalledMemoryIds: string[];
+    /** Full supplied evidence; optional for historical saved requests. */
+    recalledMemories?: MemoryEvidence[];
   };
 }
 
@@ -271,6 +273,7 @@ function enqueueRequests(world: ScenarioWorld): ScenarioWorld {
         miraPlace: world.simkins.mira.place,
         commitmentComplete: simkin.commitmentComplete,
         recalledMemoryIds: recalled.map((memory) => memory.id),
+        recalledMemories: structuredClone(recalled),
       },
     };
     requests[request.id] = request;

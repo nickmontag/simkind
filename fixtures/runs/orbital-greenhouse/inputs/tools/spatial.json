@@ -1,0 +1,65 @@
+{
+  "specVersion": "0.2.0-draft.2",
+  "kind": "tool-catalog",
+  "id": "catalog:spatial",
+  "host": {
+    "contractId": "example.spatial",
+    "version": "1.0.0"
+  },
+  "tools": [
+    {
+      "id": "move",
+      "version": "1.0.0",
+      "description": "Fly to a 3D position in frame:world (metres, Y up). Motion takes time; solid obstacles block the swept path. Cancellation keeps the reached position.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "position",
+          "frameId"
+        ],
+        "properties": {
+          "position": {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 3,
+            "items": {
+              "type": "number",
+              "minimum": -1000,
+              "maximum": 1000
+            }
+          },
+          "frameId": {
+            "const": "frame:world"
+          }
+        }
+      },
+      "lifecycle": {
+        "asynchronous": true,
+        "cancellable": true
+      }
+    },
+    {
+      "id": "say",
+      "version": "1.0.0",
+      "description": "Broadcast text to the other participants. Claims do not move bodies.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "text"
+        ],
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 4000
+          }
+        }
+      },
+      "lifecycle": {
+        "asynchronous": false,
+        "cancellable": false
+      }
+    }
+  ]
+}

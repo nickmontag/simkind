@@ -44,5 +44,34 @@ types, deterministic tests, demos, and package contents.
 ## Phase 2 validation plan
 
 The [conformance plan](https://github.com/nickmibarra/simkind/blob/main/docs/design/conformance.md) defines proposed format, host,
-and run fixtures plus release gates. Those fixtures are implementation tasks,
-not tests already present in the current alpha.
+and run fixtures plus release gates. Most remain implementation tasks. The
+character reader/writer subset has portable inputs and a manifest under
+`fixtures/format/`, exercised by `tests/format.test.ts`. Its README identifies
+partial gates and limitations. `npm run check` also verifies that generated
+format types and the embedded schema match the versioned JSON Schema. See the
+[character format guide](character-format.md).
+
+M1/M2 add `portable-fixtures`, `portable-node`, and `portable-runner` suites. They
+cover all six draft.2 kinds, schema wrappers, file/hash/reference resolution,
+configuration and provider gates before host construction, private perspectives,
+asynchronous actions, uncertainty, cancellation, deadlines/reset, hard request
+limits, file-only cast changes, and immutable exports. OpenRouter transport tests
+mock HTTP; they do not consume credits or establish new live-provider evidence.
+See the [portable scenario guide](portable-scenarios.md#verification).
+
+
+## Post-M2 alpha checks
+
+`npm run check` also covers continuity revisions, compatible checkpoints/branches,
+recording integrity, independent spatial motion/viewer parity, local playground
+APIs, and card conversion. `npm run check:runs` reproduces the three deterministic
+portable run bundles byte for byte. `npm run check:consumer` packs and installs in
+an external temporary project, so repository self-reference cannot hide missing
+exports or files. The Python reader has a separately declared fixture subset and
+CI job; see [interoperability](interoperability.md).
+
+`npm run scenario:smoke -- --model exact/provider-model` makes at most three live
+requests capped at 256 output tokens each and records successes and failures. It
+requires a configured local key and an explicit model; it is excluded from CI.
+The [release report](release-alpha.md) separates deterministic checks, mock
+transports, and the actual mixed GLM sample.

@@ -15,9 +15,7 @@ let the simulation replay the same sequence without calling the model again.
 ## Quick start: bring your own API key
 
 You need **Node.js 22.12 or later**, npm, and an **OpenRouter API key** with
-available credits. You choose the model; there is no default. The included live
-adapters use OpenRouter, and Simkind's core can work with other providers through
-your own adapter.
+available credits. You choose the model; there is no default. The portable adapters support OpenRouter, Ollama, and compatible JSON-text chat endpoints. See [provider setup](docs/providers-and-spatial.md).
 
 ### 1. Install
 
@@ -57,33 +55,37 @@ The demos read this file directly; you do not need to export or source it.
 Environment variables override the file if you prefer configuring runs from a
 shell or CI. `.env` is ignored by Git. Requests use your account and consume credits.
 
-### 3. Run the characters
+### 3. Open the local playground
 
 ```sh
-npm run demo:openrouter
+npm run playground
 ```
 
-This runs a short live scenario: Aya tries to fulfill her promise to bring Mira
-mint, while the simulation validates each model-proposed action. At the end,
-you get the action log, goal status, `replayMatched`, and reported token usage
-and cost. Live choices and goal completion can vary; `replayMatched: true`
-means the recorded decisions reproduced the final simulation state.
+Open `http://127.0.0.1:4317`. Load a situation, edit its cast and private knowledge,
+review the model slots, then start and step or run. Inspect actual perspectives,
+memories, proposals, and consequences. Pause, save a settled checkpoint, and branch
+with a recorded intervention. Edit ordinary fields through schemas, preview
+host-defined world changes, and compare sibling continuations from the same
+checkpoint. Open saved runs without making provider calls.
+See the [playground guide](docs/playground.md).
 
-Then try six characters in an interactive settlement:
+### Run headlessly or embed the same loop
 
 ```sh
-npm run demo:settlement -- --live
+npm run scenario -- --scenario shared-decision.json
+npm run scenario -- --scenario pump-crisis.json
+npm run scenario -- --scenario orbital-greenhouse.json
 ```
 
-Press **n** for one tick, **r** for five, **a** to advance to tick 30, or **q** to
-quit. Each advance requests model decisions and updates the settlement.
+The conversation, resource-constrained settlement, and independent 3D hosts use
+the same public runner. Edit ordinary JSON/character Markdown, model assignments,
+tools, and limits without changing TypeScript. `workshop.json` offers another
+situation on the conversation host. See [portable authoring](docs/portable-scenarios.md)
+and the [embedding starter](https://github.com/nickmibarra/simkind/tree/main/examples/embedding).
 
-| Live command | Scenario |
-| --- | --- |
-| `npm run demo:openrouter` | Short two-character promise scenario |
-| `npm run demo:openrouter:soak` | Longer village scenario with competing goals |
-| `npm run demo:settlement -- --live` | Interactive six-character settlement |
-| `npm run demo:settlement -- --live --run 30` | Run the settlement for 30 ticks and print a report |
+The older demos remain available with `npm run demo:openrouter`,
+`npm run demo:openrouter:soak`, and `npm run demo:settlement -- --live`.
+They retain their existing host-specific replay readers.
 
 ### Setup troubleshooting
 
@@ -102,11 +104,18 @@ quit. Each advance requests model decisions and updates the settlement.
 - Conversation lifecycle rules and character lifecycle ordering.
 - Asynchronous, provider-neutral model requests with correlated results.
 - Decision recording, replay inputs, host validation helpers, and evaluation counters.
+- Portable document schemas, a local scenario loader, and an optional shared
+  character runner with private contexts and asynchronous host outcomes.
+- Optional continuity, revision-checked intentions and interpretations, and complete
+  supplied-memory provenance.
+- Local authoring/inspection, verified playback, settled restore, immutable branches,
+  character-card conversion reports, and an independent Python document reader.
 
 The central rule is: **the model proposes; the engine validates, executes, and
 records.** Your host supplies world state, action schemas and executors, prompts,
-model providers, timeout policies, and persistence. Simkind does not include a
-simulation engine, renderer, pathfinding system, or turnkey autonomous character.
+model providers, timeout policies, and persistence. The optional runner handles
+the common loop. Simkind's core does not include a simulation engine, renderer,
+or pathfinding system; reference hosts supply their own world rules.
 
 ```text
 world snapshot -> host adapter -> model request -> proposed decision
@@ -129,7 +138,7 @@ includes TypeScript declarations. To install a locally built snapshot:
 npm ci
 npm pack
 # In your own project, install the generated archive:
-npm install /path/to/simkind/simkind-0.1.0.tgz
+npm install /path/to/simkind/simkind-0.2.0-alpha.1.tgz
 ```
 
 The path above is a placeholder for your checkout. Then use the public exports:
@@ -144,8 +153,9 @@ console.log(renderCapabilityPrompt(catalog));
 ```
 
 The archive contains the library and current user and contributor guides. Run
-demos from the Git checkout. Registry publication remains disabled with `private: true` while the
-API is experimental.
+the playground and examples from the Git checkout. Version `0.2.0-alpha.1` is prepared
+for the npm `alpha` tag; registry publication is pending npm authentication.
+See the [release evidence](docs/release-alpha.md).
 
 ## Development checks
 
@@ -156,6 +166,8 @@ They run without provider calls and are the CI baseline:
 npm run check
 npm run demo
 npm run demo:soak
+npm run check:runs
+npm run check:consumer
 ```
 
 `npm run example` and `npm run example:station` show smaller host integrations.
@@ -166,12 +178,14 @@ credential patterns.
 
 ## Status and limitations
 
-Version 0.1.0 is an experimental library with no API stability guarantee.
+Version 0.2.0-alpha.1 is an experimental library with no API stability guarantee.
 Deterministic tests cover its contracts; live results are individual behavioral
 samples, not quality or performance guarantees. Replay requires the host to
 preserve its initial state and deterministic execution. Resetting the model
 runtime discards stale results but does not cancel in-flight provider requests.
-The settlement demo is an isolated prototype.
+The earlier settlement demo remains an isolated prototype. The portable reference
+hosts now support settled checkpoints; physical restore, arbitrary world patches,
+and provider/configuration migration across branches are outside this alpha.
 
 ## Documentation and contributing
 
@@ -181,7 +195,7 @@ host integration, goals and memory, replay, and testing. See
 
 The [Phase 2 roadmap](https://github.com/nickmibarra/simkind/blob/main/roadmap.md)
 and [design proposals](https://github.com/nickmibarra/simkind/blob/main/docs/design/README.md)
-cover future plans, including the portable format and optional embodiment.
+track M1–M7 implementation evidence and remaining release gates.
 They are explicitly drafts, separate from current usage instructions.
 
 Licensed under the [MIT License](LICENSE).

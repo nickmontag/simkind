@@ -1,0 +1,177 @@
+{
+  "specVersion": "0.2.0-draft.2",
+  "kind": "run-bundle",
+  "id": "bundle:run",
+  "runId": "run:88c51a71-f8fc-4ad5-8ce5-0d9b71596ca4",
+  "scenarioRef": "scenario:shared-decision",
+  "configRef": "config:portable",
+  "host": {
+    "contractId": "example.conversation",
+    "version": "1.0.0",
+    "implementationVersion": "1.0.0"
+  },
+  "profiles": {
+    "simkind.memory-retrieval": {
+      "version": "0.1.0",
+      "required": false
+    },
+    "simkind.continuity": {
+      "version": "0.1.0",
+      "required": false
+    }
+  },
+  "clocks": [
+    {
+      "id": "clock:simulation",
+      "kind": "tick",
+      "unit": "tick",
+      "origin": "Run initialization is tick zero."
+    }
+  ],
+  "inputs": [
+    {
+      "documentId": "scenario:shared-decision",
+      "path": "inputs/shared-decision.json",
+      "sha256": "2d0758aa00072cd8e41163c508a23181094ef62fc83594ca53b22334612bd18f"
+    },
+    {
+      "documentId": "character:aya",
+      "path": "inputs/characters/aya.simkind.json",
+      "sha256": "e3418a5231d7a34949cd288ad910a79284bff5188b1af76f913b8893e4f9cf5a"
+    },
+    {
+      "documentId": "character:mira",
+      "path": "inputs/characters/mira.simkind.json",
+      "sha256": "0d92e0454525cd00002e220f814ae1c305c47a9e88117e47b755d24cb9a0ebdc"
+    },
+    {
+      "documentId": "character:sol",
+      "path": "inputs/characters/sol.simkind.json",
+      "sha256": "3c97e2da5e1421a680eabb216d0e2de5c66c514b872ff928e591b9e4ab60bded"
+    },
+    {
+      "documentId": "catalog:conversation",
+      "path": "inputs/tools/conversation.json",
+      "sha256": "1c7c73668e7709f281f46f47da700fdcd71fa2fc4f1e99e41a5f6b5a690a2423"
+    },
+    {
+      "documentId": "config:portable",
+      "path": "inputs/config-continuity.json",
+      "sha256": "7e6fc7138801c8b945926ee810b35518218d328077fedc3b2e44b142ea78c0d8"
+    }
+  ],
+  "effectiveConfig": {
+    "simkin:aya": {
+      "modelSlot": "primary",
+      "model": {
+        "provider": "openrouter",
+        "model": "z-ai/glm-5.3-flash",
+        "settings": {
+          "maxOutputTokens": 256
+        }
+      },
+      "features": {
+        "simkind.memory-retrieval": {
+          "enabled": true,
+          "config": {
+            "maxItems": 8
+          }
+        },
+        "simkind.continuity": {
+          "enabled": true,
+          "config": {}
+        }
+      },
+      "allowedTools": [
+        "say",
+        "vote"
+      ]
+    },
+    "simkin:mira": {
+      "modelSlot": "primary",
+      "model": {
+        "provider": "openrouter",
+        "model": "z-ai/glm-5.3-flash",
+        "settings": {
+          "maxOutputTokens": 256
+        }
+      },
+      "features": {
+        "simkind.memory-retrieval": {
+          "enabled": true,
+          "config": {
+            "maxItems": 8
+          }
+        },
+        "simkind.continuity": {
+          "enabled": true,
+          "config": {}
+        }
+      },
+      "allowedTools": [
+        "say",
+        "vote"
+      ]
+    },
+    "simkin:sol": {
+      "modelSlot": "primary",
+      "model": {
+        "provider": "openrouter",
+        "model": "z-ai/glm-5.3-flash",
+        "settings": {
+          "maxOutputTokens": 256
+        }
+      },
+      "features": {
+        "simkind.memory-retrieval": {
+          "enabled": true,
+          "config": {
+            "maxItems": 8
+          }
+        },
+        "simkind.continuity": {
+          "enabled": true,
+          "config": {}
+        }
+      },
+      "allowedTools": [
+        "say",
+        "vote"
+      ]
+    }
+  },
+  "limits": {
+    "maxRequests": 3,
+    "maxInFlight": 3,
+    "maxSteps": 1,
+    "requestTimeoutMs": 60000
+  },
+  "eventStreams": [
+    {
+      "path": "events.jsonl",
+      "sha256": "4ee06995e850adfc36441a74d98c27a9b90f517dca5a75911630f012e8bebf6b",
+      "count": 12
+    }
+  ],
+  "checkpoints": [
+    {
+      "id": "checkpoint:12",
+      "path": "checkpoints/0.json",
+      "sha256": "e7187aaa4f5aca62d3b083d869d002e2ae69281497a0d2667d59aa77c13f8f86",
+      "boundary": "settled"
+    }
+  ],
+  "completeness": {
+    "status": "complete",
+    "missingResources": [],
+    "pendingRequests": 0,
+    "inFlightProviders": 0,
+    "unresolvedActions": 0
+  },
+  "capabilities": {
+    "playback": true,
+    "deterministicReplay": false,
+    "restore": true,
+    "branch": true
+  }
+}

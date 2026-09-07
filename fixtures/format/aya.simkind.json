@@ -1,0 +1,14 @@
+{
+  "specVersion": "0.2.0-draft.1",
+  "kind": "character",
+  "id": "character:aya",
+  "name": "Aya",
+  "persona": {
+    "motivations": ["Be useful", "Protect my independence"],
+    "description": "Aya repairs things.\n\nShe remembers people who helped her.\n"
+  },
+  "startingState": {
+    "intentions": [{ "id": "intention:help", "description": "Find something useful to do" }],
+    "memories": [{ "id": "memory:mira", "text": "Mira helped after the flood.", "source": { "kind": "authored" } }]
+  }
+}

@@ -1,9 +1,16 @@
 # Phase 2 conformance, evaluation, and release gates
 
+Current alpha implementation and remaining scope are summarized in
+[the release report](../release-alpha.md). This design remains a broader contributor
+reference; current guides take precedence for supported commands and capabilities.
+
 Status: draft design. Audience: contributors designing future releases.
 
-This is a proposed validation plan. Fixture IDs below are implementation tasks,
-not claims that these tests already exist. This document supports the
+This is a proposed validation plan with implemented M1/M2 evidence. The
+[draft.1 character fixtures](../../fixtures/format/README.md),
+[six draft.2 document fixtures](../../fixtures/format/draft.2/README.md), and
+[host fixture scope](../../fixtures/host/README.md) identify current evidence and
+remaining gates. They do not establish full Phase 2 conformance. This supports the
 [roadmap](../../roadmap.md), [format](schema.md), and
 [host contract](host-protocol.md).
 
@@ -25,8 +32,8 @@ Physical hosts can legitimately claim recording/playback without restore/replay.
 ## Fixture organization
 
 Implement schema artifacts, human-readable specification, and test cases together.
-A proposed layout is `schemas/<revision>/`, `fixtures/format/`, `fixtures/host/`,
-and `fixtures/runs/`. These paths are future implementation targets.
+Implemented fixtures use `schemas/<revision>/`, `fixtures/format/`, and
+`fixtures/host/`. Replay/restore examples now live under `fixtures/runs/`; immutable recording tests currently live in `portable-node.test.ts`.
 
 Each fixture records ID, input files, expected validation stage, expected error
 code or normalized result, relevant profile versions, and a rationale. Tests must
@@ -147,24 +154,25 @@ mock results, deterministic host results, and actual live-provider observations.
 
 ## Phase 2 release checklist
 
-- [ ] Six document kinds have versioned schemas, semantics, and fixtures.
-- [ ] JSON/Markdown conversion is deterministic; optional extensions survive editing.
-- [ ] Required unsupported features and unresolved execution references block launch.
-- [ ] Conversation and independent headless-capable 3D hosts use the public package.
-- [ ] Character identity is independent of body, renderer, and provider.
-- [ ] Perspective isolation and asynchronous action semantics pass host fixtures.
-- [ ] Users can author a cast/situation and select models without source edits.
-- [ ] Context, selected memories, proposals, and outcomes are inspectable.
-- [ ] Playback works without new provider calls; supported replay is verified.
-- [ ] Settled restore/branch works and preserves parent history.
-- [ ] Credentials are absent from portable artifacts; redaction capability is honest.
-- [ ] Request limits, deadlines, usage, and cancellation behavior are documented/tested.
-- [ ] Character-card importer reports transformations and unmapped fields.
-- [ ] An independent-language reader passes the declared document fixture subset.
-- [ ] Two contrasting showcases and an outside-contributor walkthrough are complete.
-- [ ] Package install/import, documentation commands, and migration instructions work
+- [x] Six document kinds have versioned schemas, semantics, and fixtures.
+- [x] JSON/Markdown conversion is deterministic; optional extensions survive editing.
+- [x] Required unsupported features and unresolved execution references block launch.
+- [x] Conversation and independent headless-capable 3D hosts use the public package.
+- [x] Character identity is independent of body, renderer, and provider.
+- [x] Perspective isolation and asynchronous action semantics pass host fixtures.
+- [x] Users can author a cast/situation and select models without source edits.
+- [x] Context, selected memories, proposals, and outcomes are inspectable.
+- [x] Playback works without new provider calls; supported replay is verified.
+- [x] Settled restore/branch works and preserves parent history.
+- [x] Credentials are absent from portable artifacts; redaction capability is honest.
+- [x] Request limits, deadlines, usage, and cancellation behavior are documented/tested.
+- [x] Character-card importer reports transformations and unmapped fields.
+- [x] An independent-language reader passes the declared document fixture subset.
+- [x] Contrasting editable showcases and a contributor walkthrough are delivered.
+- [ ] The alpha is published to npm (local authentication is unavailable).
+- [x] Package install/import, documentation commands, and migration instructions work
       from clean environments with supported Node versions.
-- [ ] Release report lists versions, test evidence, live-model samples, and limitations.
+- [x] Release report lists versions, test evidence, live-model samples, and limitations.
 
 ## Release report and unresolved choices
 
@@ -172,6 +180,8 @@ Maintain a report per released format/runtime pair. Include the fixture matrix,
 reference host versions, provider/model configurations tested, known incompatibilities,
 changed semantics, and links to representative artifacts. Never include keys.
 
-The initial 3D engine, independent reader language, schema/type-generation tooling,
-and exact migration command names remain implementation choices. Choose them by
+Schema/type generation now uses Ajv and json-schema-to-typescript. Character
+draft.1 upgrades have an explicit API/report; other migrations remain open.
+The initial 3D engine, independent reader language, and further migration command
+names remain implementation choices. Choose them by
 proving this checklist rather than broadening the schema to fit one framework.

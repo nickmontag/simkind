@@ -1,0 +1,91 @@
+{
+  "specVersion": "0.2.0-draft.2",
+  "kind": "scenario",
+  "id": "scenario:spatial",
+  "resources": {
+    "character:aya": {
+      "path": "characters/aya.simkind.json"
+    },
+    "character:mira": {
+      "path": "characters/mira.simkind.json"
+    },
+    "character:sol": {
+      "path": "characters/sol.simkind.json"
+    },
+    "catalog:spatial": {
+      "path": "tools/spatial.json"
+    }
+  },
+  "host": {
+    "contractId": "example.spatial",
+    "version": "1.0.0"
+  },
+  "cast": [
+    {
+      "instanceId": "simkin:aya",
+      "characterRef": "character:aya",
+      "allowedTools": [
+        "move",
+        "say"
+      ]
+    },
+    {
+      "instanceId": "simkin:mira",
+      "characterRef": "character:mira",
+      "allowedTools": [
+        "move",
+        "say"
+      ]
+    },
+    {
+      "instanceId": "simkin:sol",
+      "characterRef": "character:sol",
+      "allowedTools": [
+        "move",
+        "say"
+      ]
+    }
+  ],
+  "toolCatalogRef": "catalog:spatial",
+  "initialConditions": {
+    "sharedContext": "Three survey drones reach a derelict orbital greenhouse. Choose how to explore, share observations, and decide where to gather. No required route or agreement. World coordinates are in metres, Y up.",
+    "positions": {
+      "simkin:aya": [
+        -4,
+        0,
+        0
+      ],
+      "simkin:mira": [
+        4,
+        0,
+        0
+      ],
+      "simkin:sol": [
+        0,
+        3,
+        4
+      ]
+    },
+    "speed": 1,
+    "bound": 12,
+    "obstacles": [
+      {
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "radius": 1.5
+      }
+    ]
+  },
+  "recommendations": {
+    "features": {
+      "simkind.memory-retrieval": {
+        "config": {
+          "maxItems": 6
+        }
+      }
+    }
+  }
+}

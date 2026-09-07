@@ -1,0 +1,76 @@
+{
+  "id": "H06",
+  "clocks": [
+    {
+      "id": "clock:simulation",
+      "kind": "tick",
+      "unit": "tick",
+      "origin": "run start"
+    }
+  ],
+  "proposal": {
+    "id": "action:1",
+    "runId": "run:fixture",
+    "actor": "simkin:aya",
+    "requestId": "request:1",
+    "toolId": "move",
+    "toolVersion": "1.0.0",
+    "observedRevision": 0,
+    "arguments": {
+      "to": "reservoir"
+    }
+  },
+  "events": [
+    {
+      "id": "host-event:1",
+      "runId": "run:fixture",
+      "actionId": "action:1",
+      "actor": "simkin:aya",
+      "status": "accepted",
+      "time": {
+        "clockId": "clock:simulation",
+        "value": 1
+      },
+      "revision": 1,
+      "effectRefs": []
+    },
+    {
+      "id": "host-event:2",
+      "runId": "run:fixture",
+      "actionId": "action:1",
+      "actor": "simkin:aya",
+      "status": "unknown",
+      "time": {
+        "clockId": "clock:simulation",
+        "value": 2
+      },
+      "revision": 2,
+      "effectRefs": [],
+      "reason": "Remote acknowledgement unavailable."
+    },
+    {
+      "id": "host-event:3",
+      "runId": "run:fixture",
+      "actionId": "action:1",
+      "actor": "simkin:aya",
+      "status": "succeeded",
+      "time": {
+        "clockId": "clock:simulation",
+        "value": 3
+      },
+      "revision": 3,
+      "effectRefs": [
+        "host-event:3"
+      ],
+      "result": {
+        "location": "reservoir"
+      }
+    }
+  ],
+  "expectedStatuses": [
+    "accepted",
+    "unknown",
+    "succeeded"
+  ],
+  "rationale": "An uncertain action remains unresolved until the host reconciles it. No retry or synthetic failure is implied."
+}

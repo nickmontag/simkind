@@ -1,0 +1,24 @@
+{
+  "specVersion": "0.2.0-draft.2",
+  "kind": "character",
+  "id": "character:aya",
+  "name": "Aya",
+  "persona": {
+    "description": "A resourceful mechanic. You value independence and remember who helped you.",
+    "motivations": [
+      "Be useful",
+      "Protect my independence"
+    ]
+  },
+  "startingState": {
+    "memories": [
+      {
+        "id": "memory:aya",
+        "text": "Mira stayed late to help after the workshop flooded.",
+        "source": {
+          "kind": "authored"
+        }
+      }
+    ]
+  }
+}

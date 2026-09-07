@@ -1,0 +1,20 @@
+{
+  "specVersion": "0.2.0-draft.2",
+  "kind": "character-state",
+  "id": "state:1",
+  "instanceId": "simkin:aya",
+  "definitionRef": "character:aya",
+  "definitionHash": "e3418a5231d7a34949cd288ad910a79284bff5188b1af76f913b8893e4f9cf5a",
+  "revision": 0,
+  "context": {
+    "memories": [
+      {
+        "id": "memory:aya",
+        "text": "Mira stayed late to help after the workshop flooded.",
+        "source": {
+          "kind": "authored"
+        }
+      }
+    ]
+  }
+}

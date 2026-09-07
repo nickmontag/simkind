@@ -1,0 +1,171 @@
+{
+  "specVersion": "0.2.0-draft.2",
+  "kind": "run-bundle",
+  "id": "bundle:run",
+  "runId": "run:fixture-orbital-greenhouse",
+  "scenarioRef": "scenario:spatial",
+  "configRef": "config:portable",
+  "host": {
+    "contractId": "example.spatial",
+    "version": "1.0.0",
+    "implementationVersion": "1.0.0"
+  },
+  "profiles": {
+    "simkind.memory-retrieval": {
+      "version": "0.1.0",
+      "required": false
+    },
+    "simkind.continuity": {
+      "version": "0.1.0",
+      "required": false
+    }
+  },
+  "clocks": [
+    {
+      "id": "clock:simulation",
+      "kind": "tick",
+      "unit": "tick",
+      "origin": "Local simulation initialization; one tick advances one simulated second."
+    }
+  ],
+  "inputs": [
+    {
+      "documentId": "scenario:spatial",
+      "path": "inputs/orbital-greenhouse.json",
+      "sha256": "29e9c529c8e07fc1cd94307271a24e4478225baa83438109d0f7abe1a5d44d66"
+    },
+    {
+      "documentId": "character:aya",
+      "path": "inputs/characters/aya.simkind.json",
+      "sha256": "e3418a5231d7a34949cd288ad910a79284bff5188b1af76f913b8893e4f9cf5a"
+    },
+    {
+      "documentId": "character:mira",
+      "path": "inputs/characters/mira.simkind.json",
+      "sha256": "0d92e0454525cd00002e220f814ae1c305c47a9e88117e47b755d24cb9a0ebdc"
+    },
+    {
+      "documentId": "character:sol",
+      "path": "inputs/characters/sol.simkind.json",
+      "sha256": "3c97e2da5e1421a680eabb216d0e2de5c66c514b872ff928e591b9e4ab60bded"
+    },
+    {
+      "documentId": "catalog:spatial",
+      "path": "inputs/tools/spatial.json",
+      "sha256": "3d64f2d37cb63ef6e8212dd10953130dbd1345ae766619b2ac26cb3fe3ea54c7"
+    },
+    {
+      "documentId": "config:portable",
+      "path": "inputs/config-continuity.json",
+      "sha256": "637bab4053ca45b60eeec4859c5de9e8ca7375313af2d966c9804b9aa9941a9d"
+    }
+  ],
+  "effectiveConfig": {
+    "simkin:aya": {
+      "modelSlot": "primary",
+      "model": {
+        "provider": "fixture",
+        "model": "evidence-v1",
+        "settings": {}
+      },
+      "features": {
+        "simkind.memory-retrieval": {
+          "enabled": true,
+          "config": {
+            "maxItems": 8
+          }
+        },
+        "simkind.continuity": {
+          "enabled": true,
+          "config": {}
+        }
+      },
+      "allowedTools": [
+        "move",
+        "say"
+      ]
+    },
+    "simkin:mira": {
+      "modelSlot": "primary",
+      "model": {
+        "provider": "fixture",
+        "model": "evidence-v1",
+        "settings": {}
+      },
+      "features": {
+        "simkind.memory-retrieval": {
+          "enabled": true,
+          "config": {
+            "maxItems": 8
+          }
+        },
+        "simkind.continuity": {
+          "enabled": true,
+          "config": {}
+        }
+      },
+      "allowedTools": [
+        "move",
+        "say"
+      ]
+    },
+    "simkin:sol": {
+      "modelSlot": "primary",
+      "model": {
+        "provider": "fixture",
+        "model": "evidence-v1",
+        "settings": {}
+      },
+      "features": {
+        "simkind.memory-retrieval": {
+          "enabled": true,
+          "config": {
+            "maxItems": 8
+          }
+        },
+        "simkind.continuity": {
+          "enabled": true,
+          "config": {}
+        }
+      },
+      "allowedTools": [
+        "move",
+        "say"
+      ]
+    }
+  },
+  "limits": {
+    "maxRequests": 12,
+    "maxInFlight": 3,
+    "maxSteps": 8,
+    "requestTimeoutMs": 30000
+  },
+  "eventStreams": [
+    {
+      "path": "events.jsonl",
+      "sha256": "98108d85f963d0f32257ac0628672a11bf9fd6dd8869563615b2abc4a2cb9ea3",
+      "count": 21
+    }
+  ],
+  "checkpoints": [
+    {
+      "id": "checkpoint:21",
+      "path": "checkpoints/0.json",
+      "sha256": "e2d4e820e299b973860c56df255362b371f85741fd5575ac92c6775242d351dc",
+      "boundary": "settled"
+    }
+  ],
+  "completeness": {
+    "status": "complete",
+    "missingResources": [],
+    "pendingRequests": 0,
+    "inFlightProviders": 0,
+    "unresolvedActions": 0
+  },
+  "capabilities": {
+    "playback": true,
+    "deterministicReplay": false,
+    "restore": true,
+    "branch": true
+  }
+}

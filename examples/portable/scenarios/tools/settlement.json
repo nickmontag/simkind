@@ -1,0 +1,115 @@
+{
+  "specVersion": "0.2.0-draft.2",
+  "kind": "tool-catalog",
+  "id": "catalog:settlement",
+  "host": {
+    "contractId": "example.settlement",
+    "version": "1.0.0"
+  },
+  "tools": [
+    {
+      "id": "move",
+      "version": "1.0.0",
+      "description": "Travel along an open edge. Arrival occurs after the configured travel ticks; cancellation leaves you at the origin.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "to"
+        ],
+        "properties": {
+          "to": {
+            "type": "string"
+          }
+        }
+      },
+      "lifecycle": {
+        "asynchronous": true,
+        "cancellable": true
+      }
+    },
+    {
+      "id": "collect",
+      "version": "1.0.0",
+      "description": "Collect one unit from the stock at your current location.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "resource"
+        ],
+        "properties": {
+          "resource": {
+            "type": "string"
+          }
+        }
+      },
+      "lifecycle": {
+        "asynchronous": false,
+        "cancellable": false
+      }
+    },
+    {
+      "id": "give",
+      "version": "1.0.0",
+      "description": "Give one carried unit to a participant at your location.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "resource",
+          "to"
+        ],
+        "properties": {
+          "resource": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          }
+        }
+      },
+      "lifecycle": {
+        "asynchronous": false,
+        "cancellable": false
+      }
+    },
+    {
+      "id": "say",
+      "version": "1.0.0",
+      "description": "Speak to everyone currently at your location. Claims in speech do not move resources or repair anything.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "text"
+        ],
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 4000
+          }
+        }
+      },
+      "lifecycle": {
+        "asynchronous": false,
+        "cancellable": false
+      }
+    },
+    {
+      "id": "repair",
+      "version": "1.0.0",
+      "description": "Repair the pump at its location by consuming the configured number of parts.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [],
+        "properties": {}
+      },
+      "lifecycle": {
+        "asynchronous": false,
+        "cancellable": false
+      }
+    }
+  ]
+}

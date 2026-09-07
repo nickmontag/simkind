@@ -1,0 +1,142 @@
+{
+  "specVersion": "0.2.0-draft.2",
+  "kind": "run-bundle",
+  "id": "bundle:run",
+  "runId": "run:fixture",
+  "scenarioRef": "scenario:shared-decision",
+  "configRef": "config:portable",
+  "host": {
+    "contractId": "example.conversation",
+    "version": "1.0.0",
+    "implementationVersion": "1.0.0"
+  },
+  "profiles": {
+    "simkind.memory-retrieval": {
+      "version": "0.1.0",
+      "required": false
+    }
+  },
+  "clocks": [
+    {
+      "id": "clock:simulation",
+      "kind": "tick",
+      "unit": "tick",
+      "origin": "Run initialization is tick zero."
+    }
+  ],
+  "inputs": [
+    {
+      "documentId": "scenario:shared-decision",
+      "path": "shared-decision.json",
+      "sha256": "2d0758aa00072cd8e41163c508a23181094ef62fc83594ca53b22334612bd18f"
+    },
+    {
+      "documentId": "character:aya",
+      "path": "characters/aya.simkind.json",
+      "sha256": "e3418a5231d7a34949cd288ad910a79284bff5188b1af76f913b8893e4f9cf5a"
+    },
+    {
+      "documentId": "character:mira",
+      "path": "characters/mira.simkind.json",
+      "sha256": "0d92e0454525cd00002e220f814ae1c305c47a9e88117e47b755d24cb9a0ebdc"
+    },
+    {
+      "documentId": "character:sol",
+      "path": "characters/sol.simkind.json",
+      "sha256": "3c97e2da5e1421a680eabb216d0e2de5c66c514b872ff928e591b9e4ab60bded"
+    },
+    {
+      "documentId": "catalog:conversation",
+      "path": "tools/conversation.json",
+      "sha256": "1c7c73668e7709f281f46f47da700fdcd71fa2fc4f1e99e41a5f6b5a690a2423"
+    },
+    {
+      "documentId": "config:portable",
+      "path": "config.json",
+      "sha256": "9354ce688bbff20fc29aff56f3ec6f171f030b3a896717dff4ec6ffdbb53d963"
+    }
+  ],
+  "effectiveConfig": {
+    "simkin:aya": {
+      "modelSlot": "primary",
+      "model": {
+        "provider": "fixture",
+        "model": "no-action-v1",
+        "settings": {}
+      },
+      "features": {
+        "simkind.memory-retrieval": {
+          "enabled": true,
+          "config": {
+            "maxItems": 8
+          }
+        }
+      },
+      "allowedTools": [
+        "say",
+        "vote"
+      ]
+    },
+    "simkin:mira": {
+      "modelSlot": "primary",
+      "model": {
+        "provider": "fixture",
+        "model": "no-action-v1",
+        "settings": {}
+      },
+      "features": {
+        "simkind.memory-retrieval": {
+          "enabled": true,
+          "config": {
+            "maxItems": 8
+          }
+        }
+      },
+      "allowedTools": [
+        "say",
+        "vote"
+      ]
+    },
+    "simkin:sol": {
+      "modelSlot": "primary",
+      "model": {
+        "provider": "fixture",
+        "model": "no-action-v1",
+        "settings": {}
+      },
+      "features": {
+        "simkind.memory-retrieval": {
+          "enabled": true,
+          "config": {
+            "maxItems": 8
+          }
+        }
+      },
+      "allowedTools": [
+        "say",
+        "vote"
+      ]
+    }
+  },
+  "limits": {
+    "maxRequests": 12,
+    "maxInFlight": 3,
+    "maxSteps": 8,
+    "requestTimeoutMs": 30000
+  },
+  "eventStreams": [],
+  "checkpoints": [],
+  "completeness": {
+    "status": "complete",
+    "missingResources": [],
+    "pendingRequests": 0,
+    "inFlightProviders": 0,
+    "unresolvedActions": 0
+  },
+  "capabilities": {
+    "playback": true,
+    "deterministicReplay": false,
+    "restore": false,
+    "branch": false
+  }
+}

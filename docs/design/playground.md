@@ -1,6 +1,17 @@
 # Phase 2 playground, authoring, and contributions
 
+Current alpha implementation and remaining scope are summarized in
+[the release report](../release-alpha.md). This design remains a broader contributor
+reference; current guides take precedence for supported commands and capabilities.
+
 Status: draft design. Audience: contributors designing future releases.
+
+M2 now supports [file authoring and CLI execution](../portable-scenarios.md).
+The local browser playground, event inspector, character-state and host-defined
+world interventions, ordinary schema-derived fields, playback sharing, and exact
+sibling-continuation comparison are implemented. Arbitrary cast/world edits,
+specialized graphical editors, and independent human usability trials remain
+outside the demonstrated scope. See the current guides for supported operations.
 
 These proposed product and implementation requirements describe a client of
 the [format](schema.md) and [host protocol](host-protocol.md), not a

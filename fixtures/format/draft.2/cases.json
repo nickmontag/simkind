@@ -1,0 +1,50 @@
+[
+  {
+    "id": "M1-character",
+    "input": "character.json",
+    "expectedKind": "character",
+    "expectedStage": "semantic",
+    "ok": true,
+    "rationale": "Standalone document validity only; referenced resources and execution support are checked separately at launch."
+  },
+  {
+    "id": "M1-character-state",
+    "input": "character-state.json",
+    "expectedKind": "character-state",
+    "expectedStage": "semantic",
+    "ok": true,
+    "rationale": "Standalone document validity only; referenced resources and execution support are checked separately at launch."
+  },
+  {
+    "id": "M1-scenario",
+    "input": "scenario.json",
+    "expectedKind": "scenario",
+    "expectedStage": "semantic",
+    "ok": true,
+    "rationale": "Standalone document validity only; referenced resources and execution support are checked separately at launch."
+  },
+  {
+    "id": "M1-run-config",
+    "input": "run-config.json",
+    "expectedKind": "run-config",
+    "expectedStage": "semantic",
+    "ok": true,
+    "rationale": "Standalone document validity only; referenced resources and execution support are checked separately at launch."
+  },
+  {
+    "id": "M1-tool-catalog",
+    "input": "tool-catalog.json",
+    "expectedKind": "tool-catalog",
+    "expectedStage": "semantic",
+    "ok": true,
+    "rationale": "Standalone document validity only; referenced resources and execution support are checked separately at launch."
+  },
+  {
+    "id": "M1-run-bundle",
+    "input": "run-bundle.json",
+    "expectedKind": "run-bundle",
+    "expectedStage": "semantic",
+    "ok": true,
+    "rationale": "Standalone document validity only; referenced resources and execution support are checked separately at launch."
+  }
+]

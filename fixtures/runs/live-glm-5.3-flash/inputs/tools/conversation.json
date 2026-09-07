@@ -1,0 +1,61 @@
+{
+  "specVersion": "0.2.0-draft.2",
+  "kind": "tool-catalog",
+  "id": "catalog:conversation",
+  "host": {
+    "contractId": "example.conversation",
+    "version": "1.0.0"
+  },
+  "tools": [
+    {
+      "id": "say",
+      "version": "1.0.0",
+      "description": "Say something to the group or privately to one participant. Speech does not cast a vote.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "text",
+          "to"
+        ],
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "to": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "lifecycle": {
+        "asynchronous": false,
+        "cancellable": false
+      }
+    },
+    {
+      "id": "vote",
+      "version": "1.0.0",
+      "description": "Record or revise your vote for one of the offered options. No agreement is required.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "option"
+        ],
+        "properties": {
+          "option": {
+            "type": "string"
+          }
+        }
+      },
+      "lifecycle": {
+        "asynchronous": false,
+        "cancellable": false
+      }
+    }
+  ]
+}

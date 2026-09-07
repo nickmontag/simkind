@@ -1,0 +1,8 @@
+{
+  "specVersion": "0.2.0-draft.1",
+  "kind": "character",
+  "id": "character:aya",
+  "name": "Aya",
+  "profiles": { "example.style": { "version": "1.0.0", "required": false } },
+  "extensions": { "example.style": { "nested": [null, true, 0, "多言語", { "__proto__": "content", "a/b~c": [1, 2] }] } }
+}

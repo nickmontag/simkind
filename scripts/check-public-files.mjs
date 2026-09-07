@@ -1,8 +1,10 @@
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { basename } from 'node:path';
 
 // Read staged blobs so a clean working copy cannot hide an unsafe staged value.
-const files = execFileSync('git', ['ls-files', '-z'], { encoding: 'utf8' })
+const workingTree = process.argv.includes('--worktree');
+const files = execFileSync('git', workingTree ? ['ls-files', '--cached', '--others', '--exclude-standard', '-z'] : ['ls-files', '-z'], { encoding: 'utf8' })
   .split('\0').filter(Boolean);
 const patterns = [
   ['private key', /-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----/],
@@ -26,7 +28,7 @@ for (const file of files) {
     fail(file, 'environment file must not be tracked');
     continue;
   }
-  const source = execFileSync('git', ['show', `:${file}`], {
+  const source = workingTree ? readFileSync(file, 'utf8') : execFileSync('git', ['show', `:${file}`], {
     encoding: 'utf8', maxBuffer: 16 * 1024 * 1024,
   });
   if (file === '.env.example') {
@@ -43,4 +45,4 @@ for (const file of files) {
 }
 
 if (failures > 0) process.exitCode = 1;
-else console.log(`Public-file checks passed for ${files.length} tracked files.`);
+else console.log(`Public-file checks passed for ${files.length} selected public files.`);

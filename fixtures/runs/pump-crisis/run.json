@@ -1,0 +1,180 @@
+{
+  "specVersion": "0.2.0-draft.2",
+  "kind": "run-bundle",
+  "id": "bundle:run",
+  "runId": "run:fixture-pump-crisis",
+  "scenarioRef": "scenario:pump-crisis",
+  "configRef": "config:portable",
+  "host": {
+    "contractId": "example.settlement",
+    "version": "1.0.0",
+    "implementationVersion": "1.0.0"
+  },
+  "profiles": {
+    "simkind.memory-retrieval": {
+      "version": "0.1.0",
+      "required": false
+    },
+    "simkind.continuity": {
+      "version": "0.1.0",
+      "required": false
+    }
+  },
+  "clocks": [
+    {
+      "id": "clock:simulation",
+      "kind": "tick",
+      "unit": "tick",
+      "origin": "Run initialization is tick zero."
+    }
+  ],
+  "inputs": [
+    {
+      "documentId": "scenario:pump-crisis",
+      "path": "inputs/pump-crisis.json",
+      "sha256": "a09b3e1ba0c795a3725faafc97a3edb67ceb436fc253bd4871a17c40fa45e668"
+    },
+    {
+      "documentId": "character:aya",
+      "path": "inputs/characters/aya.simkind.json",
+      "sha256": "e3418a5231d7a34949cd288ad910a79284bff5188b1af76f913b8893e4f9cf5a"
+    },
+    {
+      "documentId": "character:mira",
+      "path": "inputs/characters/mira.simkind.json",
+      "sha256": "0d92e0454525cd00002e220f814ae1c305c47a9e88117e47b755d24cb9a0ebdc"
+    },
+    {
+      "documentId": "character:sol",
+      "path": "inputs/characters/sol.simkind.json",
+      "sha256": "3c97e2da5e1421a680eabb216d0e2de5c66c514b872ff928e591b9e4ab60bded"
+    },
+    {
+      "documentId": "catalog:settlement",
+      "path": "inputs/tools/settlement.json",
+      "sha256": "d4d510b4562481ef3f62f0d723dbafaab934d54f5c1dc70749575b2f127be12c"
+    },
+    {
+      "documentId": "config:portable",
+      "path": "inputs/config-continuity.json",
+      "sha256": "637bab4053ca45b60eeec4859c5de9e8ca7375313af2d966c9804b9aa9941a9d"
+    }
+  ],
+  "effectiveConfig": {
+    "simkin:aya": {
+      "modelSlot": "primary",
+      "model": {
+        "provider": "fixture",
+        "model": "evidence-v1",
+        "settings": {}
+      },
+      "features": {
+        "simkind.memory-retrieval": {
+          "enabled": true,
+          "config": {
+            "maxItems": 8
+          }
+        },
+        "simkind.continuity": {
+          "enabled": true,
+          "config": {}
+        }
+      },
+      "allowedTools": [
+        "move",
+        "collect",
+        "give",
+        "say",
+        "repair"
+      ]
+    },
+    "simkin:mira": {
+      "modelSlot": "primary",
+      "model": {
+        "provider": "fixture",
+        "model": "evidence-v1",
+        "settings": {}
+      },
+      "features": {
+        "simkind.memory-retrieval": {
+          "enabled": true,
+          "config": {
+            "maxItems": 8
+          }
+        },
+        "simkind.continuity": {
+          "enabled": true,
+          "config": {}
+        }
+      },
+      "allowedTools": [
+        "move",
+        "collect",
+        "give",
+        "say",
+        "repair"
+      ]
+    },
+    "simkin:sol": {
+      "modelSlot": "primary",
+      "model": {
+        "provider": "fixture",
+        "model": "evidence-v1",
+        "settings": {}
+      },
+      "features": {
+        "simkind.memory-retrieval": {
+          "enabled": true,
+          "config": {
+            "maxItems": 8
+          }
+        },
+        "simkind.continuity": {
+          "enabled": true,
+          "config": {}
+        }
+      },
+      "allowedTools": [
+        "move",
+        "collect",
+        "give",
+        "say",
+        "repair"
+      ]
+    }
+  },
+  "limits": {
+    "maxRequests": 12,
+    "maxInFlight": 3,
+    "maxSteps": 8,
+    "requestTimeoutMs": 30000
+  },
+  "eventStreams": [
+    {
+      "path": "events.jsonl",
+      "sha256": "c35e7f1ce08126fd6dd88403f6f7f545a637c72eaabe151806d60cbcf51f2dd3",
+      "count": 21
+    }
+  ],
+  "checkpoints": [
+    {
+      "id": "checkpoint:21",
+      "path": "checkpoints/0.json",
+      "sha256": "79a83d5ed96428d7323e3c579baece56f767edb666c907d64689b433bb70c3be",
+      "boundary": "settled"
+    }
+  ],
+  "completeness": {
+    "status": "complete",
+    "missingResources": [],
+    "pendingRequests": 0,
+    "inFlightProviders": 0,
+    "unresolvedActions": 0
+  },
+  "capabilities": {
+    "playback": true,
+    "deterministicReplay": false,
+    "restore": true,
+    "branch": true
+  }
+}

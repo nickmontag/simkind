@@ -40,7 +40,7 @@ function prompt(request: VillageRequest): string {
     `Aya knows mint location: ${snapshot.ayaKnowsMintLocation}`,
     `Aya promise complete: ${snapshot.ayaPromiseComplete}`,
     `Mira tea goal complete: ${snapshot.miraTeaGoalComplete}`,
-    `Recalled memory IDs: ${snapshot.recalledMemoryIds.join(', ') || 'none'}`,
+    `Recalled memory evidence: ${JSON.stringify(snapshot.recalledMemories ?? [])}`,
     'Choose exactly one action that is legal now.',
     'Move: to square/grove; other fields none/empty.',
     'Gather: only at grove while mint remains; item mint.',

@@ -2,8 +2,9 @@
 
 Status: draft designs. Audience: contributors designing future releases.
 
-These documents describe Phase 2 targets, not the current alpha API or an
-implemented standard. Start with the [roadmap](../../roadmap.md) for direction
+These documents describe Phase 2 targets and their implementation status, not an
+established standard. M1/M2 have [current runnable guidance](../portable-scenarios.md).
+Start with the [roadmap](../../roadmap.md) for direction
 and milestones. Use the [current guides](../README.md) for supported behavior.
 
 Read in this order:

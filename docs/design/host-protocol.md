@@ -1,6 +1,15 @@
 # Phase 2 host protocol and embodiment
 
+Current alpha implementation and remaining scope are summarized in
+[the release report](../release-alpha.md). This design remains a broader contributor
+reference; current guides take precedence for supported commands and capabilities.
+
 Status: draft design. Audience: contributors designing future releases.
+
+M1/M2 implement a text/structured-data subset through `simkind/runner` and the
+conversation/settlement reference hosts. See the [current contract and limits](../portable-scenarios.md#host-outcomes-and-recordings).
+Embodiment, media, spatial profiles, and general replay/restore/branching remain
+future work. The logical protocol below includes those broader targets.
 
 This proposed contract extends the
 [format architecture](schema.md) and [roadmap](../../roadmap.md). It is not the

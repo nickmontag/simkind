@@ -1,0 +1,16 @@
+```simkind
+{
+  "specVersion": "0.2.0-draft.1",
+  "kind": "character",
+  "id": "character:aya",
+  "name": "Aya",
+  "persona": { "motivations": ["Be useful", "Protect my independence"] },
+  "startingState": {
+    "intentions": [{ "id": "intention:help", "description": "Find something useful to do" }],
+    "memories": [{ "id": "memory:mira", "text": "Mira helped after the flood.", "source": { "kind": "authored" } }]
+  }
+}
+```
+Aya repairs things.
+
+She remembers people who helped her.
