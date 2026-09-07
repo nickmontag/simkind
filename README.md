@@ -175,6 +175,16 @@ The settlement demo is an isolated prototype.
 
 ## Documentation and contributing
 
+Phase 2 plans are design targets, not features already implemented in this alpha:
+
+- [Phase 2 roadmap](roadmap.md)
+- [Portable format and schema architecture](schema.md)
+- [Host protocol and embodiment](docs/phase-2-host-protocol.md)
+- [Playground and authoring](docs/phase-2-playground.md)
+- [Conformance and release gates](docs/phase-2-conformance.md)
+
+Current alpha documentation:
+
 - [Architecture](docs/architecture.md)
 - [Host simulation integration](docs/integration.md)
 - [Goals and memory](docs/goals-and-memory.md)

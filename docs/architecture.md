@@ -1,11 +1,15 @@
 # Architecture
 
+This describes the current alpha. For proposed Phase 2 contracts, start with the
+[roadmap](../roadmap.md) and [format architecture](../schema.md).
+
 ## Authority boundary
 
-Simkind coordinates an LLM-driven simkin's cognition; the host simulation
-owns truth. Model output is always untrusted input. A host validates its schema,
-checks contextual legality, resolves outcomes, mutates world state, and emits
-events.
+Simkind coordinates an LLM-driven simkin's cognition; the host owns action
+execution and authoritative records of effects. Model output is untrusted input.
+The host validates its schema, checks contextual legality, resolves outcomes,
+mutates world state, and emits events. Physical-world hosts may observe uncertain
+state; their measurements are not assumed to be omniscient ground truth.
 
 ## Modules and seams
 
@@ -40,6 +44,10 @@ host engine phase
 advanceCognition
   motives -> urges -> criteria-backed goals -> reflection -> memory -> planning
 ```
+
+The cognition sequence above illustrates possible host work, not a mandatory
+LLM workflow. The runtime calls the adapter; characters remain free to choose
+their strategy, and reflection or planning policies remain host-defined.
 
 The split around the host phase is deliberate: a simkin can interact before
 world updates and perception resolve, then deliberate from the resulting world.

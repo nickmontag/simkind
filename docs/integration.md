@@ -1,5 +1,9 @@
 # Host simulation integration
 
+This guide covers the current alpha APIs. The proposed
+[Phase 2 host protocol](phase-2-host-protocol.md) adds portable observations,
+asynchronous host actions, and optional embodiment; it is not implemented yet.
+
 Each simulated character is a simkin, but Simkind does not prescribe a
 canonical simkin record. Identity, traits, world state, and persistence remain
 owned by the host simulation, whether it is a game or another simulated world.

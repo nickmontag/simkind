@@ -5,6 +5,14 @@ or new host responsibilities before investing in a large change. Bug reports
 should include the Node version, a minimal reproduction, expected behavior,
 and actual behavior. Remove credentials and private scenario data from reports.
 
+## Phase 2 implementation
+
+Read the [roadmap](roadmap.md), [schema architecture](schema.md), and linked
+host, playground, and conformance documents before implementing Phase 2 work.
+They distinguish current capabilities from proposed contracts and acceptance
+criteria. Preserve character freedom: host constraints and tool schemas must
+not become prescribed strategies or mandatory social scripts.
+
 ## Development
 
 Use Node 24 (or Node >=22.12), then run:

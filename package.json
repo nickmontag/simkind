@@ -18,7 +18,10 @@
     "LICENSE",
     "README.md",
     "NOTICE.md",
-    "docs"
+    "docs",
+    "CONTRIBUTING.md",
+    "roadmap.md",
+    "schema.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
