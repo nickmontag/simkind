@@ -1,9 +1,9 @@
 import { readFile } from 'node:fs/promises';
+import { parseEnv } from 'node:util';
 import { renderCapabilityPrompt } from 'simkind';
 import { settlementCapabilities } from './engine.js';
 import type { SettlementProvider, SettlementRequest, SimkinId } from './types.js';
 
-const MODEL = 'openai/gpt-5.6-luna';
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
 const objectives: Record<SimkinId, string> = {
@@ -34,23 +34,20 @@ interface OpenRouterResponse {
   error?: { message?: string };
 }
 
-function envValue(source: string, name: string): string | undefined {
-  const prefix = `${name}=`;
-  const line = source.split(/\r?\n/).find((candidate) => candidate.startsWith(prefix));
-  if (line === undefined) return undefined;
-  const value = line.slice(prefix.length).trim();
-  return value.length >= 2 && value[0] === value.at(-1) && (value[0] === '"' || value[0] === "'")
-    ? value.slice(1, -1)
-    : value;
-}
-
 export async function createSettlementOpenRouterProvider(): Promise<SettlementProvider> {
-  const env = await readFile(new URL('../../.env', import.meta.url), 'utf8');
-  const apiKey = envValue(env, 'OPENROUTER_API_KEY');
-  if (apiKey === undefined || apiKey.length === 0) throw new Error('OPENROUTER_API_KEY is missing from .env');
+  let fileEnv: ReturnType<typeof parseEnv> = {};
+  try {
+    fileEnv = parseEnv(await readFile(new URL('../../.env', import.meta.url), 'utf8'));
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+  }
+  const apiKey = (process.env.OPENROUTER_API_KEY ?? fileEnv.OPENROUTER_API_KEY ?? '').trim();
+  const model = (process.env.OPENROUTER_MODEL ?? fileEnv.OPENROUTER_MODEL ?? '').trim();
+  if (!apiKey) throw new Error('Set OPENROUTER_API_KEY in .env or your environment. Run npm run setup to create .env.');
+  if (!model) throw new Error('Set OPENROUTER_MODEL in .env or your environment to a model ID from https://openrouter.ai/models. No model is selected by default.');
   const usage = { requests: 0, totalTokens: 0, cost: 0 };
   return {
-    name: MODEL,
+    name: model,
     usage,
     async decide(request: SettlementRequest): Promise<unknown> {
       const response = await fetch(OPENROUTER_URL, {
@@ -62,7 +59,7 @@ export async function createSettlementOpenRouterProvider(): Promise<SettlementPr
           'X-OpenRouter-Title': 'Simkind settlement crisis demo',
         },
         body: JSON.stringify({
-          model: MODEL,
+          model,
           messages: [
             {
               role: 'system',
@@ -80,8 +77,6 @@ export async function createSettlementOpenRouterProvider(): Promise<SettlementPr
             json_schema: { name: 'settlement_intent', strict: true, schema },
           },
           provider: { require_parameters: true },
-          reasoning: { effort: 'minimal', exclude: true },
-          max_tokens: 250,
         }),
       });
       const body = await response.json() as OpenRouterResponse;

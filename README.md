@@ -12,31 +12,88 @@ moving, gathering, and giving, but the simulation checks each action and only ma
 the promise complete when the mint actually changes hands. Recorded decisions
 let the simulation replay the same sequence without calling the model again.
 
-## Try it locally
+## Quick start: bring your own API key
 
-Requires **Node.js 22.12 or later** and npm. Node 24 is the development default
-(`nvm use` reads `.nvmrc`). The scripted demos need no API key or paid service.
+You need **Node.js 22.12 or later**, npm, and an **OpenRouter API key** with
+available credits. You choose the model; there is no default. The included live
+adapters use OpenRouter, and Simkind's core can work with other providers through
+your own adapter.
+
+### 1. Install
 
 ```sh
 git clone https://github.com/nickmibarra/simkind.git
 cd simkind
-npm ci
-npm run check
-npm run demo
+npm run setup
 ```
 
-The four-tick demo completes Aya's promise, handles malformed model output and
-a provider failure with scripted fallbacks, and prints `replayMatched: true`.
-`npm ci` builds the library automatically.
+Setup installs dependencies, builds the library, and creates `.env`. It keeps
+any existing `.env` unchanged. If you use nvm, run `nvm use` before setup to
+select the project's Node 24 default.
 
-| Command | What it demonstrates |
+### 2. Add your key and choose a model
+
+Create an API key in [OpenRouter settings](https://openrouter.ai/settings/keys)
+and add credits to your account. See the
+[OpenRouter quickstart](https://openrouter.ai/docs/quickstart) for provider setup.
+Use an OpenRouter key here; a direct model-provider key will not authenticate
+with these adapters.
+
+Choose a model from the [OpenRouter catalog](https://openrouter.ai/models) that
+supports [structured outputs](https://openrouter.ai/docs/guides/features/structured-outputs).
+Copy its exact model ID. Open `.env` in the Simkind folder with your editor,
+fill in both values, and save:
+
+```dotenv
+OPENROUTER_API_KEY=your-openrouter-api-key
+OPENROUTER_MODEL=provider/model-id
+```
+
+Replace both placeholders with your own values. If you already had a `.env`,
+add the `OPENROUTER_MODEL` line. Change that line whenever you want to try a
+different model; all live demos use it.
+
+The demos read this file directly; you do not need to export or source it.
+Environment variables override the file if you prefer configuring runs from a
+shell or CI. `.env` is ignored by Git. Requests use your account and consume credits.
+
+### 3. Run the characters
+
+```sh
+npm run demo:openrouter
+```
+
+This runs a short live scenario: Aya tries to fulfill her promise to bring Mira
+mint, while the simulation validates each model-proposed action. At the end,
+you get the action log, goal status, `replayMatched`, and reported token usage
+and cost. Live choices and goal completion can vary; `replayMatched: true`
+means the recorded decisions reproduced the final simulation state.
+
+Then try six characters in an interactive settlement:
+
+```sh
+npm run demo:settlement -- --live
+```
+
+Press **n** for one tick, **r** for five, **a** to advance to tick 30, or **q** to
+quit. Each advance requests model decisions and updates the settlement.
+
+| Live command | Scenario |
 | --- | --- |
-| `npm run demo` | Two characters completing a promise, with validation and replay |
-| `npm run demo:soak` | 30 ticks covering timeouts, late results, save/reload, and replay |
-| `npm run demo:settlement` | Interactive six-character settlement prototype |
-| `npm run demo:settlement -- --run 30` | Non-interactive scripted settlement run |
-| `npm run example` | Small memory, goal, and lifecycle example |
-| `npm run example:station` | A second host using a space-station world |
+| `npm run demo:openrouter` | Short two-character promise scenario |
+| `npm run demo:openrouter:soak` | Longer village scenario with competing goals |
+| `npm run demo:settlement -- --live` | Interactive six-character settlement |
+| `npm run demo:settlement -- --live --run 30` | Run the settlement for 30 ticks and print a report |
+
+### Setup troubleshooting
+
+- **Node version error:** use Node 22.12 or later, then rerun `npm run setup`.
+- **Missing key or model:** rerun setup, then fill in `OPENROUTER_API_KEY` and
+  `OPENROUTER_MODEL` in the root `.env`. Setup preserves existing files.
+- **No successful model requests or provider-error fallbacks:** check that your
+  key is valid and your OpenRouter account has credits and access to the selected
+  model. Verify its model ID and structured-output support. `replayMatched`
+  alone does not prove that provider calls succeeded.
 
 ## What the toolkit provides
 
@@ -90,26 +147,22 @@ The archive contains the library and documentation. Run demos from the Git
 checkout. Registry publication remains disabled with `private: true` while the
 API is experimental.
 
-## Optional live demos
+## Development checks
 
-Live demos send scenario snapshots to OpenRouter and consume API credits.
-They currently select `openai/gpt-5.6-luna`; availability and pricing depend on
-the provider. Scripted demos are the reproducible baseline.
+Scripted scenarios exercise validation, fallbacks, and replay during development.
+They run without provider calls and are the CI baseline:
 
 ```sh
-cp .env.example .env
-# Edit .env and set OPENROUTER_API_KEY locally.
-npm run demo:openrouter
-# Longer scenarios:
-npm run demo:openrouter:soak
-npm run demo:settlement -- --live --run 30
+npm run check
+npm run demo
+npm run demo:soak
 ```
 
-The adapters read the repository's `.env` file. `.env` and `.env.*` are ignored,
-except the blank `.env.example`. Never put credentials in source, examples,
-issue reports, or committed logs. CI checks tracked files for environment files
-and common credential patterns. Live demos report provider-returned token usage
-and cost, and are excluded from CI.
+`npm run example` and `npm run example:station` show smaller host integrations.
+See [Contributing](CONTRIBUTING.md) for the development workflow. Live demos
+send scenario snapshots to OpenRouter and are excluded from CI. Keep keys in
+`.env`; the public-file check rejects tracked environment files and common
+credential patterns.
 
 ## Status and limitations
 

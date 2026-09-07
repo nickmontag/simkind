@@ -33,7 +33,8 @@
     "demo:settlement": "npm run build --silent && tsx demos/settlement-crisis/cli.ts",
     "example": "tsx examples/reference-world.ts",
     "example:station": "tsx examples/station-world.ts",
-    "check:public": "node scripts/check-public-files.mjs"
+    "check:public": "node scripts/check-public-files.mjs",
+    "setup": "npm ci && node scripts/setup.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.1.1",

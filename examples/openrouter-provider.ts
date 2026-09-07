@@ -1,7 +1,6 @@
 import type { ScenarioInput, ScenarioRequest } from './two-simkins.js';
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
-export const OPENROUTER_MODEL = 'openai/gpt-5.6-luna';
 
 interface OpenRouterResponse {
   choices?: { message?: { content?: string | null } }[];
@@ -73,11 +72,13 @@ function scenarioInput(request: ScenarioRequest, intent: unknown): ScenarioInput
   };
 }
 
-export function createOpenRouterLunaJsonProvider<Request, Output>(
+export function createOpenRouterJsonProvider<Request, Output>(
   apiKey: string,
+  model: string,
   options: OpenRouterJsonProviderOptions<Request, Output>,
 ) {
-  if (apiKey.length === 0) throw new Error('OPENROUTER_API_KEY is empty');
+  if (!apiKey.trim()) throw new Error('OPENROUTER_API_KEY is empty');
+  if (!model.trim()) throw new Error('OPENROUTER_MODEL is empty');
   const usage: OpenRouterUsage = {
     requests: 0,
     promptTokens: 0,
@@ -98,7 +99,7 @@ export function createOpenRouterLunaJsonProvider<Request, Output>(
           'X-OpenRouter-Title': 'Simkind live scenario',
         },
         body: JSON.stringify({
-          model: OPENROUTER_MODEL,
+          model,
           messages: [
             {
               role: 'system',
@@ -115,8 +116,7 @@ export function createOpenRouterLunaJsonProvider<Request, Output>(
             },
           },
           provider: { require_parameters: true },
-          reasoning: { effort: 'minimal', exclude: true },
-          max_tokens: options.maxTokens ?? 300,
+          max_tokens: options.maxTokens,
         }),
       });
       const payload = await response.json() as OpenRouterResponse & {
@@ -137,8 +137,8 @@ export function createOpenRouterLunaJsonProvider<Request, Output>(
   };
 }
 
-export function createOpenRouterLunaProvider(apiKey: string) {
-  return createOpenRouterLunaJsonProvider<ScenarioRequest, ScenarioInput>(apiKey, {
+export function createOpenRouterProvider(apiKey: string, model: string) {
+  return createOpenRouterJsonProvider<ScenarioRequest, ScenarioInput>(apiKey, model, {
     schemaName: 'simkind_intent',
     schema: responseSchema(),
     prompt: promptFor,

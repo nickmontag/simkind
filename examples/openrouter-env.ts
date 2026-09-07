@@ -1,24 +1,16 @@
 import { readFile } from 'node:fs/promises';
+import { parseEnv } from 'node:util';
 
-function envValue(source: string, name: string): string | undefined {
-  const prefix = `${name}=`;
-  const line = source.split(/\r?\n/).find((candidate) => candidate.startsWith(prefix));
-  if (line === undefined) return undefined;
-  const raw = line.slice(prefix.length).trim();
-  if (
-    raw.length >= 2 &&
-    ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'")))
-  ) {
-    return raw.slice(1, -1);
+export async function readOpenRouterConfig(): Promise<{ apiKey: string; model: string }> {
+  let fileEnv: ReturnType<typeof parseEnv> = {};
+  try {
+    fileEnv = parseEnv(await readFile(new URL('../.env', import.meta.url), 'utf8'));
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
   }
-  return raw;
-}
-
-export async function readOpenRouterApiKey(): Promise<string> {
-  const env = await readFile(new URL('../.env', import.meta.url), 'utf8');
-  const apiKey = envValue(env, 'OPENROUTER_API_KEY');
-  if (apiKey === undefined || apiKey.length === 0) {
-    throw new Error('Set OPENROUTER_API_KEY in .env before running a live demo');
-  }
-  return apiKey;
+  const apiKey = (process.env.OPENROUTER_API_KEY ?? fileEnv.OPENROUTER_API_KEY ?? '').trim();
+  const model = (process.env.OPENROUTER_MODEL ?? fileEnv.OPENROUTER_MODEL ?? '').trim();
+  if (!apiKey) throw new Error('Set OPENROUTER_API_KEY in .env or your environment. Run npm run setup to create .env.');
+  if (!model) throw new Error('Set OPENROUTER_MODEL in .env or your environment to a model ID from https://openrouter.ai/models. No model is selected by default.');
+  return { apiKey, model };
 }

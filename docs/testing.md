@@ -24,14 +24,15 @@ one four-tick promise-delivery story. Run it with `npm run demo`; its assertions
 live in `tests/two-simkins.integration.test.ts`.
 
 `npm run demo:openrouter` swaps the scripted provider for
-`openai/gpt-5.6-luna` through OpenRouter. Treat this as an opt-in behavioral
-smoke test: it consumes API credits and should not replace deterministic CI.
+the model selected by `OPENROUTER_MODEL` through OpenRouter. Treat this as an
+opt-in behavioral smoke test: it consumes API credits and should not replace
+deterministic CI.
 
 `npm run demo:soak` is the longer integration gate. Over 30 ticks it covers
 two goals competing for one mint, contextual rejection, a delayed timeout and
 late completion, conversation-sourced memory, bounded concurrency, save/reload
 with requests pending, and exact ledger replay. `npm run demo:openrouter:soak`
-runs the same world with Luna choosing actions; it is intentionally excluded
+runs the same world with your chosen model selecting actions; it is excluded
 from CI because it is nondeterministic and consumes credits.
 
 Future evaluation can broaden scenario coverage and quality rubrics. Do not

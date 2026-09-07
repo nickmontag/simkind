@@ -14,28 +14,33 @@ simkins act only on their memories, what they observe, direct requests, and a
 public noticeboard. The host validates every proposed action and records its
 outcome.
 
-## Run
+## Run with your API key
 
-Interactive deterministic mode:
+From the repository root, run `npm run setup`, then put your OpenRouter key in
+`.env` as `OPENROUTER_API_KEY=your-openrouter-api-key` and choose a model with
+`OPENROUTER_MODEL=provider/model-id`. See the
+[root quick start](../../README.md#quick-start-bring-your-own-api-key) for key
+creation and model selection instructions. There is no default model. Live
+mode consumes credits from your OpenRouter account.
+
+Interactive live mode:
 
 ```sh
-npm run demo:settlement
+npm run demo:settlement -- --live
 ```
 
-Non-interactive 30-tick run:
-
-```sh
-npm run demo:settlement -- --run 30
-```
-
-Live Luna mode uses `OPENROUTER_API_KEY` from the repository `.env`:
+Controls: `n` advances one tick, `r` advances five, `a` runs to tick 30, and
+`q` quits. To run without interaction and print a report:
 
 ```sh
 npm run demo:settlement -- --live --run 30
 ```
 
-Interactive controls: `n` advances one tick, `r` advances five, `a` runs to
-tick 30, and `q` quits.
+For deterministic development checks, omit `--live`:
+
+```sh
+npm run demo:settlement -- --run 30
+```
 
 ## Boundary
 

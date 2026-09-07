@@ -1,8 +1,7 @@
-import { readOpenRouterApiKey } from './openrouter-env.js';
+import { readOpenRouterConfig } from './openrouter-env.js';
 import {
-  createOpenRouterLunaJsonProvider,
-  OPENROUTER_MODEL,
-} from './openrouter-luna.js';
+  createOpenRouterJsonProvider,
+} from './openrouter-provider.js';
 import { runVillageLiveSoak, type VillageRequest } from './village-soak.js';
 
 const schema = {
@@ -52,8 +51,8 @@ function prompt(request: VillageRequest): string {
   ].join('\n');
 }
 
-const apiKey = await readOpenRouterApiKey();
-const provider = createOpenRouterLunaJsonProvider<VillageRequest, unknown>(apiKey, {
+const { apiKey, model } = await readOpenRouterConfig();
+const provider = createOpenRouterJsonProvider<VillageRequest, unknown>(apiKey, model, {
   schemaName: 'simkind_village_intent',
   schema,
   prompt,
@@ -61,4 +60,4 @@ const provider = createOpenRouterLunaJsonProvider<VillageRequest, unknown>(apiKe
   system: 'Act as one simkin. Choose one legal engine action from the supplied state. Return only schema-conforming JSON.',
 });
 const { report, log } = await runVillageLiveSoak(provider.fulfill);
-console.log(JSON.stringify({ model: OPENROUTER_MODEL, report, usage: provider.usage, log }, null, 2));
+console.log(JSON.stringify({ model, report, usage: provider.usage, log }, null, 2));
