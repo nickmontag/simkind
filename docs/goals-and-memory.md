@@ -2,9 +2,11 @@
 
 ## Two kinds of goals
 
-Use a `north_star` for subjective direction: identity, aspiration, or a desire
-whose resolution requires reflection. Use a `commitment` for a promise the
-engine can measure. A commitment should contain explicit evidence criteria.
+A host may represent subjective direction—identity, aspirations, or desires—
+in its own character model. `north_star` is a conceptual label, not an exported
+Simkind type or required goal category. Use the exported `Commitment` interface
+when the host needs to evaluate explicit evidence criteria. Characters remain
+free to choose how to pursue their goals.
 
 Simkind supports criteria backed by memories, events, inventory, and
 relationships. The host implements `GoalEvidenceAdapter`, because only the

@@ -7,7 +7,8 @@ and actual behavior. Remove credentials and private scenario data from reports.
 
 ## Phase 2 implementation
 
-Read the [roadmap](roadmap.md), [schema architecture](schema.md), and linked
+Read the [roadmap](https://github.com/nickmibarra/simkind/blob/main/roadmap.md),
+[schema architecture](https://github.com/nickmibarra/simkind/blob/main/docs/design/schema.md), and linked
 host, playground, and conformance documents before implementing Phase 2 work.
 They distinguish current capabilities from proposed contracts and acceptance
 criteria. Preserve character freedom: host constraints and tool schemas must
@@ -25,8 +26,8 @@ npm run demo:soak
 ```
 
 Before committing, stage the intended files and run `npm run check:public`.
-It checks the Git index, including staged content, for environment files and
-common credential patterns without printing matching values. This is a focused
+It checks the Git index, including staged content, for private note folders,
+environment files, and common credential patterns without printing matching values. This is a focused
 safeguard, not a complete secret scanner. CI runs it on every push and PR.
 
 Keep simulation-specific rules in examples or demos. Changes to core should explain
@@ -40,7 +41,14 @@ Keep live-provider tests opt-in: they cost money and are nondeterministic.
 - `tests/`: contract and deterministic integration tests.
 - `examples/`: small host integrations and scripted/live scenarios.
 - `demos/`: isolated experimental hosts using the public package exports.
-- `docs/`: architecture, integration contracts, and evaluation notes.
+- `docs/`: current guides and the [documentation index](docs/README.md).
+- `docs/design/`: public draft proposals, clearly separated from shipped behavior.
+- `docs/archive/`: dated results and useful superseded guidance.
+- `.internal/`: ignored local planning, agent handoffs, research, and scratch files.
+
+Follow the [documentation policy](docs/documentation-policy.md) when adding,
+moving, or retiring a document. Keep public design decisions self-contained;
+private session notes are not a dependency for contributors.
 
 `npm pack` builds a local installable archive. The package is not currently
 published to the npm registry. Contributions are distributed under the project's

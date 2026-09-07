@@ -1,8 +1,10 @@
 # Phase 2 host protocol and embodiment
 
-Status: proposed contract. This document extends the
-[format architecture](../schema.md) and [roadmap](../roadmap.md). It is not the
-current `SimkinRuntimeAdapter` API; see [current integration](integration.md).
+Status: draft design. Audience: contributors designing future releases.
+
+This proposed contract extends the
+[format architecture](schema.md) and [roadmap](../../roadmap.md). It is not the
+current `SimkinRuntimeAdapter` API; see [current integration](../integration.md).
 Exact function/type names remain implementation choices. The ownership and
 execution semantics below are the target.
 

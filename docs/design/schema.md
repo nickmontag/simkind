@@ -1,13 +1,15 @@
 # Simkind Format: Phase 2 schema architecture
 
-Status: proposed draft, not an implemented or published standard. Examples use
+Status: draft design. Audience: contributors designing future releases.
+
+This is not an implemented or published standard. Examples use
 `0.2.0-draft.1` as a proposed format revision; it is independent of the npm
 package version. Field names are recommended design targets until schemas and
 conformance fixtures are implemented together.
 
-See the [roadmap](roadmap.md), [host protocol](docs/phase-2-host-protocol.md),
-[authoring experience](docs/phase-2-playground.md), and
-[conformance plan](docs/phase-2-conformance.md).
+See the [roadmap](../../roadmap.md), [host protocol](host-protocol.md),
+[authoring experience](playground.md), and
+[conformance plan](conformance.md).
 
 ## 1. Purpose and non-goals
 
@@ -342,7 +344,7 @@ truncated runs, unavailable media, redacted data, and missing evidence.
 
 Do not claim deterministic replay from an action ledger alone. Replay requires
 compatible host code, initial state, exogenous inputs, ordering, and relevant
-randomness. See the [host protocol](docs/phase-2-host-protocol.md#checkpoints-playback-and-branches).
+randomness. See the [host protocol](host-protocol.md#checkpoints-playback-and-branches).
 A playback-only or redacted export can be useful without being resumable.
 
 ## 10. Embodiment and world profiles
@@ -355,7 +357,7 @@ profile rather than silently choosing a routing policy.
 Embodiment, presentation, and environment provenance are independent. A headless
 3D world is embodied; a browser-rendered chat is not necessarily embodied.
 Spatial records, sensors, asynchronous actions, and physical execution semantics
-are specified in the [host protocol](docs/phase-2-host-protocol.md).
+are specified in the [host protocol](host-protocol.md).
 
 Tool descriptors use stable IDs, descriptions, `inputSchema`, and optional
 `outputSchema`. A catalog describes an operation but does not grant permission

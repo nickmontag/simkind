@@ -1,4 +1,8 @@
-# Latest evaluation
+# Village evaluation — 2026-08-11
+
+Status: historical. Archived 2026-09-07; retained as a dated observation, not
+current setup guidance or a benchmark. See the [current testing guide](../testing.md)
+for supported commands and model selection.
 
 Evaluated 2026-08-11 with the 30-tick village scenario. Aya promises to bring
 Mira the world's only mint while also personally wanting to keep it. Mira knows
@@ -16,7 +20,7 @@ complete only after the transfer and brewing events actually occur.
 | Rejected decisions | 2 | 1 |
 | Fallbacks | 1 timeout | 0 |
 | Conversation memories created | 1 | 1 |
-| Decisions influenced by that memory | 5 | 3 |
+| Decisions with that memory ID in context | 5 | 3 |
 | Repeated identical actions | 5 | 0 |
 | Stalled ticks | 5 | 0 |
 | Maximum pending / in flight | 2 / 2 | 2 / 2 |
@@ -37,7 +41,12 @@ and brewed tea. It completed both commitments without a fallback and replayed
 exactly. The live result is a behavioral smoke sample, not a deterministic
 benchmark; repeated runs may choose different legal plans.
 
-## Commands
+The memory count records inclusion of a recalled ID, not proven causal influence
+or delivery of its full text to the model. Costs
+and model behavior above describe the original sample. Current live demos
+require an explicit model choice and may produce different outcomes.
+
+## Commands used for this scenario
 
 ```sh
 npm run demo:soak

@@ -9,3 +9,6 @@ coverage/
 
 # Local agent notes
 .claude/
+
+# Private planning, research, and temporary artifacts
+/.internal/

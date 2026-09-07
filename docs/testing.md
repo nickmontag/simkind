@@ -43,6 +43,6 @@ types, deterministic tests, demos, and package contents.
 
 ## Phase 2 validation plan
 
-The [conformance plan](phase-2-conformance.md) defines proposed format, host,
+The [conformance plan](https://github.com/nickmibarra/simkind/blob/main/docs/design/conformance.md) defines proposed format, host,
 and run fixtures plus release gates. Those fixtures are implementation tasks,
 not tests already present in the current alpha.

@@ -1,7 +1,7 @@
 # Host simulation integration
 
 This guide covers the current alpha APIs. The proposed
-[Phase 2 host protocol](phase-2-host-protocol.md) adds portable observations,
+[Phase 2 host protocol](https://github.com/nickmibarra/simkind/blob/main/docs/design/host-protocol.md) adds portable observations,
 asynchronous host actions, and optional embodiment; it is not implemented yet.
 
 Each simulated character is a simkin, but Simkind does not prescribe a

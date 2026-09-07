@@ -17,6 +17,10 @@ function fail(file, reason) {
 }
 
 for (const file of files) {
+  if (file.split('/').some((part) => part === '.internal' || part === '.claude')) {
+    fail(file, 'private workspace file must not be tracked');
+    continue;
+  }
   const name = basename(file);
   if ((name === '.env' || name.startsWith('.env.')) && file !== '.env.example') {
     fail(file, 'environment file must not be tracked');

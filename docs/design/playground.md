@@ -1,8 +1,10 @@
 # Phase 2 playground, authoring, and contributions
 
-Status: proposed product and implementation requirements. This is a client of
-the [format](../schema.md) and [host protocol](phase-2-host-protocol.md), not a
-second runtime. See [milestones M2–M7](../roadmap.md).
+Status: draft design. Audience: contributors designing future releases.
+
+These proposed product and implementation requirements describe a client of
+the [format](schema.md) and [host protocol](host-protocol.md), not a
+second runtime. See [milestones M2–M7](../../roadmap.md).
 
 ## Primary user journeys
 

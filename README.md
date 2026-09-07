@@ -115,8 +115,8 @@ world snapshot -> host adapter -> model request -> proposed decision
 ```
 
 See the [integration guide](docs/integration.md) for the host contract.
-[`examples/two-simkins.ts`](examples/two-simkins.ts) connects the complete loop;
-[`examples/reference-world.ts`](examples/reference-world.ts) is a smaller tour
+[`examples/two-simkins.ts`](https://github.com/nickmibarra/simkind/blob/main/examples/two-simkins.ts) connects the complete loop;
+[`examples/reference-world.ts`](https://github.com/nickmibarra/simkind/blob/main/examples/reference-world.ts) is a smaller tour
 with trusted scripted inputs, not a model-output validation example.
 
 ## Use in another project
@@ -143,8 +143,8 @@ const catalog = defineCapabilityCatalog({
 console.log(renderCapabilityPrompt(catalog));
 ```
 
-The archive contains the library and documentation. Run demos from the Git
-checkout. Registry publication remains disabled with `private: true` while the
+The archive contains the library and current user and contributor guides. Run
+demos from the Git checkout. Registry publication remains disabled with `private: true` while the
 API is experimental.
 
 ## Development checks
@@ -175,22 +175,13 @@ The settlement demo is an isolated prototype.
 
 ## Documentation and contributing
 
-Phase 2 plans are design targets, not features already implemented in this alpha:
+The [documentation index](docs/README.md) covers the current alpha: architecture,
+host integration, goals and memory, replay, and testing. See
+[Contributing](CONTRIBUTING.md) to make a change.
 
-- [Phase 2 roadmap](roadmap.md)
-- [Portable format and schema architecture](schema.md)
-- [Host protocol and embodiment](docs/phase-2-host-protocol.md)
-- [Playground and authoring](docs/phase-2-playground.md)
-- [Conformance and release gates](docs/phase-2-conformance.md)
-
-Current alpha documentation:
-
-- [Architecture](docs/architecture.md)
-- [Host simulation integration](docs/integration.md)
-- [Goals and memory](docs/goals-and-memory.md)
-- [Determinism and evaluation](docs/determinism-and-evaluation.md)
-- [Testing strategy](docs/testing.md)
-- [Evaluation sample](docs/evaluation.md)
-- [Contributing](CONTRIBUTING.md)
+The [Phase 2 roadmap](https://github.com/nickmibarra/simkind/blob/main/roadmap.md)
+and [design proposals](https://github.com/nickmibarra/simkind/blob/main/docs/design/README.md)
+cover future plans, including the portable format and optional embodiment.
+They are explicitly drafts, separate from current usage instructions.
 
 Licensed under the [MIT License](LICENSE).

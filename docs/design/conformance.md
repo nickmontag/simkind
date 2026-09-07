@@ -1,9 +1,11 @@
 # Phase 2 conformance, evaluation, and release gates
 
-Status: proposed validation plan. Fixture IDs below are implementation tasks,
+Status: draft design. Audience: contributors designing future releases.
+
+This is a proposed validation plan. Fixture IDs below are implementation tasks,
 not claims that these tests already exist. This document supports the
-[roadmap](../roadmap.md), [format](../schema.md), and
-[host contract](phase-2-host-protocol.md).
+[roadmap](../../roadmap.md), [format](schema.md), and
+[host contract](host-protocol.md).
 
 ## Compatibility claims
 

@@ -1,7 +1,7 @@
 # Architecture
 
 This describes the current alpha. For proposed Phase 2 contracts, start with the
-[roadmap](../roadmap.md) and [format architecture](../schema.md).
+[roadmap](https://github.com/nickmibarra/simkind/blob/main/roadmap.md) and [format architecture](https://github.com/nickmibarra/simkind/blob/main/docs/design/schema.md).
 
 ## Authority boundary
 

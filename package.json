@@ -18,10 +18,14 @@
     "LICENSE",
     "README.md",
     "NOTICE.md",
-    "docs",
     "CONTRIBUTING.md",
-    "roadmap.md",
-    "schema.md"
+    "docs/README.md",
+    "docs/documentation-policy.md",
+    "docs/architecture.md",
+    "docs/integration.md",
+    "docs/goals-and-memory.md",
+    "docs/determinism-and-evaluation.md",
+    "docs/testing.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",

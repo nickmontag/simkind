@@ -10,8 +10,12 @@ A demo should provide:
 - a README stating the question it explores;
 - one command to run it;
 - an in-memory deterministic mode;
-- optional live-provider code kept inside its directory; and
-- notes capturing what was learned before the prototype is deleted or promoted.
+- live-provider code kept inside its directory when supported; and
+- public limitations and reproducible findings in its README.
+
+Keep exploratory logs and agent handoffs in the ignored `.internal/` directory.
+Publish a dated report only when it helps other users, and label it as historical
+when it no longer describes the current release.
 
 There is deliberately no shared demo framework yet. Shared infrastructure
 should be extracted only after two demos need the same thing.
