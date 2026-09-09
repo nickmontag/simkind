@@ -63,3 +63,18 @@ world updates and perception resolve, then deliberate from the resulting world.
 - Applied, rejected, and fallback outcomes can be attached to their exact decision records.
 - Domain-specific behavior enters through adapters or hooks, never generic
   conversation code.
+
+## Portable runner responsibilities
+
+`CharacterRunner` also exposes a higher-level portable integration boundary. Its
+optional `HostPerception` separates current authorized state from new experiences;
+`PerceptionJournal` preserves identity, original wording, audiences, and delivery
+cursors. The context profile provides bounded recent evidence, model-authored
+consolidation, and original-evidence recall. The host still owns action effects
+and explicit game rules; characters own interpretations and goals. These portable
+facilities complement the lower-level adapters above.
+
+Turn-based hosts can budget maintenance separately from decision work and use
+SQLite checkpoints with `runDurably`. Shared deadlines remain the default for
+realtime embeddings. See [Building simulations](building-simulations.md) and
+[Durable runs](durable-runs.md) for current contracts and limitations.

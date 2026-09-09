@@ -1,4 +1,4 @@
-import type { HostDescriptor, HostRegistration, PreparedLaunch } from 'simkind/runner';
+import type { HostDescriptor, HostRegistration, PreparedLaunch, RunnerStorage } from 'simkind/runner';
 import type { ActionProposal, JsonObject, JsonValue, ToolCatalog } from 'simkind/format';
 import { LocalHost, limits, capabilities, clocks, type WorldEdit } from './support.js';
 
@@ -21,9 +21,9 @@ interface World {
   messages: { from: string; recipients: string[]; text: string }[];
 }
 class SettlementHost extends LocalHost<World> {
-  constructor(launch: PreparedLaunch, descriptor = settlementHost.descriptor) {
+  constructor(launch: PreparedLaunch, descriptor = settlementHost.descriptor, storage?: RunnerStorage) {
     const initial = structuredClone(launch.scenario.initialConditions);
-    super(launch, descriptor, { ...initial, travelling: {}, messages: [] } as unknown as World);
+    super(launch, descriptor, { ...initial, travelling: {}, messages: [] } as unknown as World, storage, descriptor.implementationVersion === '1.2.0');
   }
   observe(actor: string) {
     const place = this.world.places.find((entry) => entry.id === this.world.positions[actor])!;
@@ -32,7 +32,7 @@ class SettlementHost extends LocalHost<World> {
       present: this.actors.filter((other) => this.world.positions[other] === place.id),
       pump: this.world.pump.location === place.id ? this.world.pump : null,
       travelling: Object.hasOwn(this.world.travelling, actor) ? { to: this.world.travelling[actor].to, due: this.world.travelling[actor].due } : null,
-      messages: this.world.messages.filter((message) => message.recipients.includes(actor)) });
+      messages: this.eventPerception ? [] : this.storage ? this.newMessages(actor) : this.world.messages.filter((message) => message.recipients.includes(actor)) });
   }
   protected validate(world: World, proposal: ActionProposal) {
     const actor = proposal.actor;
@@ -58,9 +58,13 @@ class SettlementHost extends LocalHost<World> {
     if (proposal.toolId === 'give') { next.inventories[actor][resource]--; const recipient = next.inventories[proposal.arguments.to as string]; recipient[resource] = (Object.hasOwn(recipient, resource) ? recipient[resource] : 0) + 1; }
     if (proposal.toolId === 'say') next.messages.push({ from: actor, text: proposal.arguments.text as string, recipients: this.actors.filter((other) => next.positions[other] === place.id) });
     if (proposal.toolId === 'repair') { next.inventories[actor].parts -= next.pump.partsRequired; next.pump.broken = false; }
+    if (this.storage) next.messages = next.messages.slice(-32);
     return next;
   }
-  protected result(proposal: ActionProposal): JsonValue { return { toolId: proposal.toolId, ...proposal.arguments, location: this.world.positions[proposal.actor], inventory: this.world.inventories[proposal.actor] }; }
+  protected afterCommit(proposal: ActionProposal) {
+    if (proposal.toolId === 'say') this.retainMessage(this.world.messages.at(-1)!, `dialogue:${proposal.id}`);
+  }
+  protected result(proposal: ActionProposal): JsonValue { return { toolId: proposal.toolId, ...proposal.arguments, location: this.world.positions[proposal.actor], inventory: this.world.inventories[proposal.actor], inventoryMeaning: 'Current total holdings, not amounts produced or transferred.', effect: proposal.toolId === 'say' ? 'speech-delivered; contents are unverified' : proposal.toolId === 'move' ? 'travel-completed; arrived at location' : 'named-operation-completed' }; }
   protected running(proposal: ActionProposal) { return proposal.toolId === 'move'; }
   protected advanceWorld() {
     for (const [actor, travel] of Object.entries(this.world.travelling)) {
@@ -114,8 +118,8 @@ export const settlementHost: HostRegistration = {
       || Object.values(initial.positions).some((place) => !places.includes(place));
     return invalid ? [{ stage: 'referential', code: 'INVALID_WORLD_BINDING', documentId: scenario.id, pointer: '/initialConditions', message: 'Bind every cast instance once, and resolve all place, route, and pump references.' }] : [];
   },
-  create: (launch) => new SettlementHost(launch),
-  restore: (launch, snapshot) => { const host = new SettlementHost(launch); host.restore(snapshot); return host; },
+  create: (launch, runtime) => new SettlementHost(launch, undefined, runtime?.storage),
+  restore: (launch, snapshot, runtime) => { const host = new SettlementHost(launch, undefined, runtime?.storage); host.restore(snapshot); return host; },
 };
 
 const interventionDescriptor: HostDescriptor = { ...settlementHost.descriptor, implementationVersion: '1.1.0', interventions: [
@@ -126,6 +130,12 @@ const interventionDescriptor: HostDescriptor = { ...settlementHost.descriptor, i
 ] };
 export const settlementInterventionHost: HostRegistration = {
   descriptor: interventionDescriptor, validateInitial: settlementHost.validateInitial,
-  create: launch => new SettlementHost(launch, interventionDescriptor),
-  restore: (launch, snapshot) => { const host = new SettlementHost(launch, interventionDescriptor); host.restore(snapshot); return host; },
+  create: (launch, runtime) => new SettlementHost(launch, interventionDescriptor, runtime?.storage),
+  restore: (launch, snapshot, runtime) => { const host = new SettlementHost(launch, interventionDescriptor, runtime?.storage); host.restore(snapshot); return host; },
+};
+
+export const settlementPerceptionHost: HostRegistration = { ...settlementInterventionHost,
+  descriptor: { ...settlementInterventionHost.descriptor, implementationVersion: '1.2.0' },
+  create: (launch, runtime) => new SettlementHost(launch, settlementPerceptionHost.descriptor, runtime?.storage),
+  restore: (launch, snapshot, runtime) => { const host = new SettlementHost(launch, settlementPerceptionHost.descriptor, runtime?.storage); host.restore(snapshot); return host; },
 };

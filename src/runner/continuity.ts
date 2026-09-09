@@ -14,6 +14,17 @@ export const reviseTool: ToolDescriptor = {
     supersedes: { type: 'array', uniqueItems: true, maxItems: 32, items: { type: 'string' } },
   } }, lifecycle: { asynchronous: false, cancellable: false },
 };
+/** Model decisions omit bookkeeping; legacy explicit values must match the frozen request. */
+export function decisionReviseTool(revision: number, evidenceIds: string[]): ToolDescriptor {
+  const tool = structuredClone(reviseTool);
+  tool.description = 'Optionally revise your intentions or record an interpretation. These are self-reports, not world facts or agreements. The runner attaches the character revision from this request; omit expectedRevision. Omitted intentions preserves them; [] abandons them. Cite only supplied memories.';
+  const schema = tool.inputSchema as { required: string[]; properties: Record<string, unknown> };
+  schema.required = [];
+  schema.properties.expectedRevision = { type: 'integer', const: revision };
+  schema.properties.evidence = { type: 'array', uniqueItems: true, maxItems: 32, items: evidenceIds.length ? { type: 'string', enum: evidenceIds } : false };
+  return tool;
+}
+
 export interface StateEdit { expectedRevision: number; intentions?: Intention[]; interpretation?: string; evidence?: string[]; supersedes?: string[] }
 const validateEdit = compileDataSchema(reviseTool.inputSchema);
 

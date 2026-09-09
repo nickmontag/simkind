@@ -1,23 +1,34 @@
 import { canonicalJson, validateDocument, validateRecord, validateTime, type JsonValue, type RunBundle, type RunEvent } from '../format/index.js';
 import { ActionLedger } from './actions.js';
 import type { PreparedLaunch } from './contracts.js';
+import type { RunnerStorage } from './storage.js';
 
 export interface RunnerCheckpoint {
-  version: 'simkind.checkpoint/1';
+  version: 'simkind.checkpoint/1' | 'simkind.checkpoint/2';
   id: string;
   host: RunBundle['host'];
   launch: PreparedLaunch;
   hostState: JsonValue;
   events: RunEvent[];
-  scheduler: { steps: number; requests: number; requestSequence: number; nextActor: number; paused: boolean };
+  scheduler: { steps: number; requests: number; requestSequence: number; nextActor: number; paused: boolean; memoryTurnOffset?: number };
+  archive?: { eventCount: number; revision?: number; actors: Record<string, { evidence: number; episodes: number; version: number }> };
   parent?: RunBundle['parent'];
+  modelCapabilities?: Record<string, { text: boolean; json: boolean; jsonSchema?: boolean }>;
 }
 
 /** Validates persisted evidence before a host restore hook can run. */
 export function validateCheckpoint(value: RunnerCheckpoint): void {
   canonicalJson(value);
-  if (value.version !== 'simkind.checkpoint/1' || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value.id)) throw new Error('Unsupported checkpoint.');
+  if (!['simkind.checkpoint/1', 'simkind.checkpoint/2'].includes(value.version) || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value.id)) throw new Error('Unsupported checkpoint.');
+  if (value.version === 'simkind.checkpoint/2' && (!value.archive || value.events.length || !Number.isSafeInteger(value.archive.eventCount) || value.archive.eventCount < 0)) throw new Error('Invalid archived checkpoint.');
   const { scheduler, launch } = value;
+  if (scheduler.memoryTurnOffset !== undefined && (!Number.isSafeInteger(scheduler.memoryTurnOffset) || scheduler.memoryTurnOffset < 0)) throw new Error('Invalid lifetime turn offset.');
+  if (value.archive) {
+    if (value.archive.revision !== undefined && (!Number.isSafeInteger(value.archive.revision) || value.archive.revision < 0)) throw new Error('Invalid archive revision.');
+    for (const [actor, counts] of Object.entries(value.archive.actors)) {
+      if (!launch.states[actor] || !counts || ['evidence', 'episodes', 'version'].some(key => !Number.isSafeInteger(counts[key as keyof typeof counts]) || counts[key as keyof typeof counts] < 0)) throw new Error('Invalid actor archive cutoff.');
+    }
+  }
   for (const field of ['steps', 'requests', 'requestSequence', 'nextActor'] as const) if (!Number.isSafeInteger(scheduler[field]) || scheduler[field] < 0) throw new Error('Invalid checkpoint scheduler.');
   if (scheduler.requestSequence < scheduler.requests) throw new Error('Checkpoint request sequence is invalid.');
   if (typeof scheduler.paused !== 'boolean' || scheduler.steps > launch.config.limits.maxSteps || scheduler.requests > launch.config.limits.maxRequests
@@ -33,8 +44,8 @@ export function validateCheckpoint(value: RunnerCheckpoint): void {
   }
 }
 
-export function ledgerFromEvents(runId: string, clocks: RunBundle['clocks'], events: readonly RunEvent[]): ActionLedger {
-  const ledger = new ActionLedger(runId, clocks);
+export function ledgerFromEvents(runId: string, clocks: RunBundle['clocks'], events: readonly RunEvent[], storage?: RunnerStorage): ActionLedger {
+  const ledger = new ActionLedger(runId, clocks, storage);
   for (const event of events) {
     if (validateTime(event.time, clocks).length) throw new Error('Invalid checkpoint event clock.');
     if (event.type === 'proposal') ledger.propose(event.data as unknown as import('../format/index.js').ActionProposal);
@@ -53,8 +64,8 @@ export function ledgerFromEvents(runId: string, clocks: RunBundle['clocks'], eve
 }
 
 /** Branch comparison reports recorded availability and outcomes, never causal influence. */
-export function compareRuns(left: readonly RunEvent[], right: readonly RunEvent[]) {
-  const summarize = (events: readonly RunEvent[]) => {
+export function compareRuns(left: Iterable<RunEvent>, right: Iterable<RunEvent>) {
+  const summarize = (events: Iterable<RunEvent>) => {
     let requests = 0, inputTokens = 0, outputTokens = 0, reportedCost = 0, usageReports = 0, costReports = 0;
     const outcomes: Record<string, number> = {};
     for (const event of events) {

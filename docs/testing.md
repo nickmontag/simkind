@@ -75,3 +75,20 @@ requests capped at 256 output tokens each and records successes and failures. It
 requires a configured local key and an explicit model; it is excluded from CI.
 The [release report](release-alpha.md) separates deterministic checks, mock
 transports, and the actual mixed GLM sample.
+
+## Cross-scenario perception and durability
+
+`tests/perception.test.ts` checks private dialogue, repeated wording with different
+identities, narrative versus interpretation, recipient delivery order after
+restore, participant receipts, and bounded state-heavy contexts.
+`tests/runner-resilience.test.ts` checks separate maintenance deadlines while
+preserving shared-deadline behavior. `tests/durable-session.test.ts` checks reports,
+settled recovery, and interrupted evidence-only exports. Provider tests cover
+allowlisted usage, cache, and routing metadata.
+
+`npm run check:long-runs -- --turns 1000` exercises current conversation and
+settlement implementations with exact restore; `--legacy` selects the older
+baseline. The opt-in live memory harness uses current event delivery and detects
+checkpoint questions in new dialogue events. See
+[the scenario evaluation recipe](building-simulations.md#versioning-and-verification)
+for behavioral checks that apply across social, cooperative, and competitive hosts.

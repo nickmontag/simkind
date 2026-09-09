@@ -20,7 +20,7 @@ export function compareBranches(left: BranchEvidence, right: BranchEvidence) {
   const totals = compareRuns(left.events, right.events);
   return {
     kind: 'sibling-continuations' as const,
-    sharedPrefix: { runId: left.parent.launch.runId, checkpointId: left.parent.id, eventCount: left.parent.events.length },
+    sharedPrefix: { runId: left.parent.launch.runId, checkpointId: left.parent.id, eventCount: left.parent.archive?.eventCount ?? left.parent.events.length },
     left: { runId: left.manifest.runId, totals: totals.left, events: structuredClone([...left.events]) },
     right: { runId: right.manifest.runId, totals: totals.right, events: structuredClone([...right.events]) },
   };

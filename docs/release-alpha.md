@@ -1,124 +1,129 @@
-# 0.2.0-alpha.1 release candidate — 2026-09-07
+# 0.2.0-alpha.1 release candidate — September 9, 2026
 
-Local implementation is complete for the scoped M3–M7 alpha capabilities below.
-The npm archive is prepared; **registry publication is pending authentication**
-(`npm whoami` returned `ENEEDAUTH`). This is not a claim that the package is already
-available on npm. The implementation includes the earlier M1/M2 work.
-The contributor walkthrough and clean-consumer checks are delivered; independent
-human trials and broader behavioral/provider sampling have not been performed.
+The scoped Phase 2 alpha capabilities are implemented locally. The package remains
+an experimental release candidate, not a stable API or an established standard.
+Registry publication is not recorded as completed; the last publishing check was
+blocked by npm authentication. Independent human onboarding trials and comparative
+character-intelligence benchmarks remain open.
 
-## Versions and boundaries
+## Current capabilities and versions
 
-| Component | Version / scope |
+| Component | Current scope |
 | --- | --- |
-| Runtime package | `0.2.0-alpha.1`, ESM, Node >=22.12 |
-| Portable documents | `0.2.0-draft.2`; original draft.1 character reader preserved |
-| Continuity | `simkind.continuity` 0.1.0, optional |
-| Memory retrieval | 0.1.0 stable IDs without continuity; documented recency selection with continuity |
-| Checkpoint | `simkind.checkpoint/1`, settled boundaries only |
-| Spatial profile | `simkind.spatial` 0.1.0, optional TypeScript frame contract |
-| Playback exchange | `simkind.playback/1`, explicitly no restore or execution |
-| Card import | v1/v2 JSON text subset; full source retained inertly |
-| Reference hosts | Contract 1.0.0; conversation/settlement implementation 1.1.0 with operator edits, original 1.0.0 replay readers preserved; spatial implementation 1.0.0 |
-| Python reader | Draft.2 structural document fixture subset, jsonschema 4.23.0 |
+| Runtime | `0.2.0-alpha.1`, ESM, Node >=22.16 |
+| Portable documents | `0.2.0-draft.2`; original draft.1 character reader retained |
+| Characters and situations | File-authored casts, personas, private context, tools, model slots, and limits |
+| Continuity and context | Optional `simkind.continuity` and `simkind.context` 0.1.0; explicit intentions, attributed interpretations, original evidence, model-authored episodes, and bounded recent history |
+| Checkpoints | Legacy `simkind.checkpoint/1` and indexed-storage `simkind.checkpoint/2`; compatible settled boundaries |
+| Archives | Indexed SQLite evidence, paged reads, verified source hashes, resumable or explicitly evidence-only exports |
+| Current reference hosts | Conversation, settlement, economy, and fabrication implementation 1.2.0; spatial implementation 1.0.0; exact legacy implementations retained |
+| Playground | Character-first economy/shop recaps, turn stepping and playback, state inspection, source authoring, saved runs, and supported branching |
+| Durable execution | Separate supervised worker, status/usage reports, settled checkpoints, and recovery into a new copy |
+| Embedding and spatial | Public runner/provider/Node/spatial entry points; independent kinematic 3D reference host with headless/viewer equality |
+| Interoperability | Playback exchange, v1/v2 character-card JSON text subset with loss reports, and independent Python structural reader subset |
 
-Core contracts are separate from optional runner continuity, Node recording I/O,
-provider transports, spatial helpers, reference hosts, and the playground client.
-No mandatory planner, reflection loop, social script, or preferred story outcome
-was added. Existing host-specific primitives/readers remain available.
+World rules remain in hosts. The shared runner does not require a planner,
+relationship ontology, economic incentives, cooperation, or a preferred story.
+Speech and personal interpretations cannot overwrite authoritative host effects.
+New host versions preserve exact readers for earlier supported recordings.
 
-## Verification evidence
+## Engineering evidence
 
-The repository provides reproducible checks for:
+The latest completed implementation checkpoint passed **243 tests across 24 files**,
+generated-artifact checks, build, and typechecking. External tarball consumer checks,
+three deterministic run reproductions, public-file checks, and documentation links
+also passed. Local results do not imply that remote CI has run.
 
-- Strict documents/generated artifacts, private perspective projection, asynchronous
-  tool lifecycles, provider timeouts, abort-ignoring concurrency, and request limits.
-- Continuity provenance, self-report revisions, stale edit refusal, immutable host
-  evidence, settled restore, parent-preserving branches, and corrupt snapshots.
-- Spatial frame conversion, swept obstacles, timed progress/partial cancellation,
-  and exact headless/viewer record equality.
-- Local authoring, save/open/import, checkpoint availability, metadata redaction,
-  hash corruption, and local HTTP origin/session protections.
-- Schema-derived authoring with validated JSON/Markdown saves and extension
-  preservation; pure world previews, atomic stale rejection, private message
-  projection, replayable intervention logs, and exact sibling comparisons.
-- Card conversion reports and JSON/Markdown extension preservation.
-- Independent Python reading of all six positive draft.2 document fixtures and
-  negative parser/structure cases; declared exclusions are in the reader guide.
-- Three generated run fixtures with exact byte comparison; both legacy deterministic
-  demos; scenario CLI and resume/replay commands; external tarball import/typechecks.
+Tests cover perspective isolation, stale edits, asynchronous action outcomes,
+provider deadlines and cleanup, bounded correction attempts, memory citation and
+cutoff validation, host-specific tool constraints, archive integrity, exact restore,
+branch isolation, playback, and local playground APIs. Browser checks from the
+implementation work exercised per-character recaps, stepping, playback, source
+editing, and evidence inspection; independent human usability testing is still open.
 
-Run the full local suite with:
+Earlier procedural workloads reached 10,000 turns per character on conversation
+and settlement hosts, with exact restore and bounded decision context. The latest
+changes were rechecked at 1,000 turns per character on both hosts. These are scripted
+mechanical tests, not thousands of autonomous model decisions. Indexed lexical
+search still slows as matching history grows. See [long-run evaluation](long-run-evaluation.md).
+
+Run the main checks from a checkout:
 
 ```sh
 npm run check
 npm run check:runs
 npm run check:consumer
+npm run check:public -- --worktree
 npm run demo
 npm run demo:soak
-.internal/python-reader/bin/python -m unittest discover -s examples/python-reader -v
+python -m unittest discover -s examples/python-reader -v
 ```
 
-The updated TypeScript suite passed 176 tests across 15 files. All three deterministic
-run fixtures reproduced exactly, the clean external consumer passed, and the Python
-reader passed its three test methods (including all six document fixtures).
-Local verification used Node 24.15.0 and Python 3.14. CI is configured to repeat
-Node checks on 22 and 24 and the independent Python subset on 3.12. Local results
-do not imply those remote CI jobs have already run. Browser checks exercised the
-local fixture start, step, save, playback, and branch flow, plus persona forms,
-world previews/edits, and divergent sibling traces; HTTP/session tests
-cover the same underlying public APIs. Fixture mode is not live-model evidence.
+The Python subset requires the dependencies described in its reader guide.
 
-## Live sample: z-ai/glm-5.3-flash
+## Live evidence and its limits
 
-The user selected this exact model for at most three requests, each capped at
-256 output tokens. The one-step Shared Decision sample had one valid model
-response, one accepted/succeeded speech action, and two contained provider errors.
-The successful request reported 1,243 input tokens, 80 output tokens, and
-$0.00022645. Usage and cost for the failed requests are unknown. Raw provider error
-messages are intentionally excluded from portable evidence because they may
-contain credentials; the original errors cannot be diagnosed from this recording.
-No retries or substitute model were used.
+Live economy and fabrication runs have produced barter, paid work, equipment
+rental, bargaining, refusals, information sharing, and completed customer orders.
+These demonstrate observed behavior; they do not establish that a particular memory
+mechanism caused it, or that the same quality holds in friendship or narrative sims.
 
-The full fictional scenario recording is retained in
-[the run fixtures](https://github.com/nickmibarra/simkind/tree/main/fixtures/runs/live-glm-5.3-flash),
-alongside its sources and settled checkpoint. This mixed result is limited live
-transport evidence, not a clean reliability pass. Ollama and generic compatible
-transport behavior is tested with mocks, not a new local-model run. No comparative
-benchmark establishes a state-of-the-art character-intelligence claim.
+The latest completed ten-turn fabrication trial used 46 calls: 40 initial decision
+requests, four compactions, and two successful schema-correction retries. Provider
+receipts reported about $0.06487. There were no timeouts or context-capacity failures,
+but one invalid provider response lost a final decision and supplied no usage
+receipt. Four host rejections protected rules; all report-boundary cash checks
+balanced. The final archive restored exactly without model calls.
+
+A controlled reconstruction of two earlier post-compaction contexts reduced total
+characters by 35.4% and 28.8%, keeping protected recent history, observations, goals,
+and summary identical. This measures redundant payload reduction, not equal semantic
+retrieval quality or a measured whole-run cost saving. Automatic recall now returns
+at most three direct records within a default 6,000-character cap; explicit recall
+can still retrieve originals with its larger allowance.
+
+Compactions still sometimes retain stale balances, contradictions, or mistaken
+interpretations. Structured output and clearer instructions do not guarantee factual
+consistency. The [memory guide](long-run-memory.md) describes these tradeoffs; the
+[behavioral evaluation plan](behavioral-evaluation.md) separates structural correctness,
+source retrieval, interpretation, and character choice.
+
+The original three-call GLM transport sample and earlier test counts are historical
+checkpoints. They are not the current reliability sample. Remote/local compatible
+adapters have mock coverage; broad live provider compatibility is not established.
+No SOTA ranking is claimed.
 
 ## Supported limits and deferred work
 
-- Restoration requires exact host implementation and effective model/configuration
-  compatibility. Child branches reset local budgets, retain host time/provenance,
-  and keep the parent prefix as a separate immutable checkpoint.
-- Character state and host-defined world interventions are supported; arbitrary world patches,
-  cross-provider branch migrations, unresolved-action restoration, and physical
-  restore/replay are not. Physical recording readers never execute tools.
-- The spatial host is bounded kinematics with point agents and static spherical
-  obstacles. It is not rigid-body physics or a production robot driver.
-- Playback directory reads have 64 MiB total/32 MiB resource bounds; documents,
-  events, checkpoint JSON, and UI imports retain a 1 MiB limit. Large checkpoint
-  exports must be omitted or use a future archival profile.
-- The playground edits authoritative JSON/Markdown through source and ordinary
-  schema-derived fields. Complex arrays/unions use JSON editors; specialized
-  graphical editors and multi-user hosting are not included.
-- Redaction is coarse: metadata-only export removes all event content. A selected
-  perspective is not a share permission. Complete recordings can contain fictional
-  private knowledge; credentials from local connections are excluded.
-- No production npm release, external human usability validation, or broad model
-  evaluation is claimed. The contributor walkthrough is available for that work.
+- Restore requires the exact supported host implementation and effective configuration.
+  Arbitrary world patches, cross-host migration, and unresolved external-effect rollback
+  are not supported. Physical recording readers never execute real-world actions.
+- The spatial reference is bounded kinematics with point agents and static spherical
+  obstacles, not rigid-body physics or a production robot driver.
+- Legacy playback retains 32 MiB/resource and 64 MiB total bounds. Larger long-session
+  recordings use the separate indexed archive path; readers retain metadata/resource
+  validation. Do not treat a legacy playback bundle as an unlimited archive.
+- Protected recent observations and goals must fit their configured context allowance.
+  The runner cannot promise both arbitrarily large verbatim observations and bounded
+  input. Hosts remain responsible for useful, bounded current-state projections.
+- The supervisor is local, not a reboot-persistent service. Its worker is not attached
+  automatically to playground live controls. Reports/logs are its live monitoring surface.
+- Complete recordings can contain private fictional knowledge. A selected perspective
+  is not permission to share the whole recording. Local connection credentials are excluded.
+- Complex authoring fields use JSON editors. Multi-user hosting, huge populations,
+  distributed execution, production robotics, and universal psychology are deferred.
 
-## Publishing the prepared artifact
+## Remaining release gates
 
-After npm authentication is available, rerun the checks and inspect the archive,
-then publish the alpha tag explicitly:
+Reconcile and commit the current implementation and evidence; run the release checks
+against that exact tree; perform an independent contributor walkthrough; then publish
+an explicitly reviewed alpha artifact when registry authentication is available.
+Publishing to npm and pushing Git history are separate actions.
 
 ```sh
 npm pack
 npm publish simkind-0.2.0-alpha.1.tgz --tag alpha --access public
 ```
 
-Package metadata defaults to the `alpha` tag. This does not publish Git changes or
-claim API stability. Future incompatible checkpoint/host behavior must use new
-versions; it must not silently reinterpret an old artifact.
+The commands document the release procedure; their presence does not mean publication
+has occurred. Package metadata defaults to the `alpha` tag.

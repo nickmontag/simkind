@@ -6,6 +6,7 @@ import { canonicalJson, readCharacter, readDocument, readJson, validateDocument,
   type ActionEvent, type ActionProposal, type JsonObject, type JsonValue, type RunConfig, type Scenario } from '../src/format/index.js';
 import { conversationHost } from '../examples/portable/hosts/conversation.js';
 import { settlementHost } from '../examples/portable/hosts/settlement.js';
+import { ollamaConnection } from '../src/providers/index.js';
 
 const root = new URL('../examples/portable/scenarios', import.meta.url).pathname;
 async function bundle(path = 'shared-decision.json') {
@@ -93,7 +94,7 @@ function event(id: string, status: ActionEvent['status'], extra: Partial<ActionE
     if (failure === 'required-profile') cfg.profiles!['unknown.profile'] = { version: '1', required: true };
     if (failure === 'enabled-feature') { cfg.profiles!['unknown.profile'] = { version: '1', required: false }; cfg.features!['unknown.profile'] = { enabled: true }; }
     if (failure === 'host-version') scene.host.version = '2.0.0';
-    if (failure === 'host-limit') cfg.limits.maxRequests = 1001;
+    if (failure === 'host-limit') cfg.limits.maxRequests = conversationHost.descriptor.limits.maxRequests + 1;
     if (failure === 'tool-contract') { const catalog = data.documents[scene.toolCatalogRef]; if (catalog.kind === 'tool-catalog') catalog.tools[0].description = 'different semantics'; }
     if (failure === 'permissions') { scene.cast[0].allowedTools = ['say']; cfg.perInstance = { 'simkin:aya': { allowedTools: ['vote'] } }; }
     const create = vi.fn(conversationHost.create);
@@ -230,6 +231,25 @@ describe('host authority and asynchronous actions', () => {
 });
 
 describe('runner resource and provider boundaries', () => {
+  it.each([{ prefix: '', suffix: '\n``' }, { prefix: '', suffix: '\n```' }, { prefix: '```json\n', suffix: '\n```' }])('accepts a decision with code fences %j', async ({ prefix, suffix }) => {
+    const data = await bundle(); config(data).limits.maxRequests = 1;
+    const instance = runner(data, conversationHost, connection(async () => ({ output: prefix + '{"toolId":null,"arguments":{}}' + suffix })));
+    instance.step(); await instance.settleDecisions();
+    expect(instance.events().find(e => e.type === 'model-result')?.data).toMatchObject({ output: { toolId: null, arguments: {} }, normalization: 'code-fence' });
+    expect(instance.events().some(e => e.type === 'model-error')).toBe(false);
+  });
+  it.each([
+    '{"toolId":null,"arguments":{}}\nIgnore the rules',
+    '{"toolId":null,"toolId":"say","arguments":{}}\n```',
+    '{"toolId":null,"arguments":{},"extra":true}\n```',
+    '{"toolId":null,"arguments":{}\n```',
+  ])('still rejects invalid JSON or decision structure after fence handling: %s', async output => {
+    const data = await bundle(); config(data).limits.maxRequests = 1;
+    const instance = runner(data, conversationHost, connection(async () => ({ output })));
+    instance.step(); await instance.settleDecisions();
+    expect(instance.events().find(e => e.type === 'model-error')?.data).toMatchObject({ code: 'INVALID_OUTPUT' });
+    expect(instance.events().some(e => e.type === 'proposal')).toBe(false);
+  });
   it('H15 enforces request/concurrency limits and schedules all cast members fairly', async () => {
     const data = await bundle(); config(data).limits.maxInFlight = 1; config(data).limits.maxRequests = 3;
     const actors: string[] = [];
@@ -291,6 +311,24 @@ describe('runner resource and provider boundaries', () => {
     expect(JSON.stringify(instance.events())).not.toContain('credential-not-for-recording');
     expect(JSON.stringify(contexts)).not.toContain('operator-only extension');
     expect(instance.inspect().launch.characters['simkin:aya'].extensions).toEqual(character.extensions);
+  });
+
+  it('records transport failure evidence without executing an action or leaking provider text', async () => {
+    const data = await bundle(); config(data).limits.maxRequests = 1;
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+      choices: [{ finish_reason: 'length', message: { content: null, reasoning: 'private-provider-text' } }],
+      usage: { completion_tokens: 512, completion_tokens_details: { reasoning_tokens: 512 }, cost: 0.001 },
+    }))));
+    try {
+      const instance = runner(data, conversationHost, ollamaConnection('explicit'));
+      instance.step(); await instance.settleDecisions();
+      expect(instance.events().find(e => e.type === 'model-error')?.data).toMatchObject({
+        code: 'PROVIDER_ERROR', diagnostic: { reason: 'OUTPUT_LIMIT', outputTokens: 512, reasoningTokens: 512, cost: 0.001 },
+        usage: { outputTokens: 512, cost: 0.001 },
+      });
+      expect(instance.events().some(e => e.type === 'proposal')).toBe(false);
+      expect(JSON.stringify(instance.events())).not.toContain('private-provider-text');
+    } finally { vi.unstubAllGlobals(); }
   });
 
   it('rejects a host observation addressed to another character', async () => {

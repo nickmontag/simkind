@@ -16,7 +16,7 @@ The package has independent entry points:
 ```ts
 import { openRouterConnection, ollamaConnection, chatCompletionsConnection } from 'simkind/providers';
 
-const remote = openRouterConnection(key, 'your-explicit-model', {maxOutputTokens: 512});
+const remote = openRouterConnection(key, 'your-explicit-model');
 const local = ollamaConnection('your-installed-model');
 const compatible = chatCompletionsConnection({
   provider: 'my-provider', model: 'my-model', apiKey: key,

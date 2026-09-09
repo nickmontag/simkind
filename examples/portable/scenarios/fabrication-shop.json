@@ -1,0 +1,139 @@
+{
+  "specVersion": "0.2.0-draft.2",
+  "kind": "scenario",
+  "id": "scenario:fabrication-shop",
+  "resources": {
+    "character:shop-ada": {
+      "path": "characters/shop-ada.simkind.json"
+    },
+    "character:shop-bram": {
+      "path": "characters/shop-bram.simkind.json"
+    },
+    "character:shop-cleo": {
+      "path": "characters/shop-cleo.simkind.json"
+    },
+    "character:shop-dev": {
+      "path": "characters/shop-dev.simkind.json"
+    },
+    "catalog:fabrication": {
+      "path": "tools/fabrication.json"
+    }
+  },
+  "host": {
+    "contractId": "example.fabrication",
+    "version": "1.0.0"
+  },
+  "cast": [
+    {
+      "instanceId": "simkin:ada",
+      "characterRef": "character:shop-ada"
+    },
+    {
+      "instanceId": "simkin:bram",
+      "characterRef": "character:shop-bram"
+    },
+    {
+      "instanceId": "simkin:cleo",
+      "characterRef": "character:shop-cleo"
+    },
+    {
+      "instanceId": "simkin:dev",
+      "characterRef": "character:shop-dev"
+    }
+  ],
+  "toolCatalogRef": "catalog:fabrication",
+  "initialConditions": {
+    "turns": 120,
+    "rentEvery": 20,
+    "rent": 12,
+    "till": 20,
+    "people": {
+      "simkin:ada": {
+        "inventory": {
+          "cash": 80,
+          "materials": 4,
+          "standard": 0,
+          "premium": 0,
+          "tools": [
+            2
+          ]
+        },
+        "fabrication": 1,
+        "repair": 1,
+        "sourcingPrice": 2
+      },
+      "simkin:bram": {
+        "inventory": {
+          "cash": 10,
+          "materials": 16,
+          "standard": 0,
+          "premium": 0,
+          "tools": []
+        },
+        "fabrication": 4,
+        "repair": 1,
+        "sourcingPrice": 2
+      },
+      "simkin:cleo": {
+        "inventory": {
+          "cash": 30,
+          "materials": 6,
+          "standard": 0,
+          "premium": 0,
+          "tools": [
+            4,
+            4,
+            2
+          ]
+        },
+        "fabrication": 2,
+        "repair": 3,
+        "sourcingPrice": 2
+      },
+      "simkin:dev": {
+        "inventory": {
+          "cash": 5,
+          "materials": 2,
+          "standard": 0,
+          "premium": 0,
+          "tools": []
+        },
+        "fabrication": 1,
+        "repair": 1,
+        "sourcingPrice": 1
+      }
+    },
+    "orders": [
+      {
+        "id": "order:pop-up",
+        "customer": "Night Shift Events",
+        "quantity": 4,
+        "quality": "standard",
+        "payment": 18,
+        "deadline": 18,
+        "recipient": null,
+        "brief": "Four display brackets for a weekend pop-up. A small, quick job; all four must arrive together."
+      },
+      {
+        "id": "order:fit-out",
+        "customer": "Gridline Interiors",
+        "quantity": 10,
+        "quality": "standard",
+        "payment": 55,
+        "deadline": 36,
+        "recipient": null,
+        "brief": "Ten mounting assemblies for a commercial fit-out. Larger payout competes for production capacity."
+      },
+      {
+        "id": "order:prototype",
+        "customer": "Vector Robotics",
+        "quantity": 6,
+        "quality": "premium",
+        "payment": 66,
+        "deadline": 28,
+        "recipient": "simkin:dev",
+        "brief": "Dev received this lead privately: six precision housings for a prototype. Premium quality is mandatory. Decide whether to reveal the lead or negotiate help privately."
+      }
+    ]
+  }
+}

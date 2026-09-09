@@ -143,7 +143,7 @@
   "eventStreams": [
     {
       "path": "events.jsonl",
-      "sha256": "98108d85f963d0f32257ac0628672a11bf9fd6dd8869563615b2abc4a2cb9ea3",
+      "sha256": "1e8a0f76c607e538a944b0a9a08e775addfa8c81d5eb4462e09b261ea44414f4",
       "count": 21
     }
   ],
@@ -151,7 +151,7 @@
     {
       "id": "checkpoint:21",
       "path": "checkpoints/0.json",
-      "sha256": "e2d4e820e299b973860c56df255362b371f85741fd5575ac92c6775242d351dc",
+      "sha256": "3339a23c05818aa63183a52a7bc8713c04da110261c3de540f173efc8a14a72d",
       "boundary": "settled"
     }
   ],

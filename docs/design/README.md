@@ -17,6 +17,10 @@ Read in this order:
    interventions, sharing, and contribution workflows.
 4. [Conformance and release gates](conformance.md): proposed fixtures,
    compatibility claims, behavioral evaluation, migration, and release evidence.
+5. [Agent context and long-run continuity](agent-context.md): proposed context
+   assembly, model-driven consolidation, recall, and long-run evaluation.
+   The [critical scaling review](agent-context-scaling-review.md) assesses the
+   additional requirements for hundreds to thousands of turns per character.
 
 The guiding constraint is emergent behavior: structure the world and its
 consequences while letting characters choose how to act. Headless operation,

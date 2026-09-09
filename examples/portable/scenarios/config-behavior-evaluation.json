@@ -1,0 +1,51 @@
+{
+  "specVersion": "0.2.0-draft.2",
+  "kind": "run-config",
+  "id": "config:behavior-evaluation",
+  "profiles": {
+    "simkind.memory-retrieval": {
+      "version": "0.1.0",
+      "required": true
+    },
+    "simkind.continuity": {
+      "version": "0.1.0",
+      "required": true
+    },
+    "simkind.context": {
+      "version": "0.1.0",
+      "required": true
+    }
+  },
+  "modelAssignments": {
+    "simkin:aya": "primary",
+    "simkin:mira": "primary",
+    "simkin:sol": "primary"
+  },
+  "features": {
+    "simkind.memory-retrieval": {
+      "enabled": true,
+      "config": {
+        "maxItems": 8
+      }
+    },
+    "simkind.continuity": {
+      "enabled": true,
+      "config": {}
+    },
+    "simkind.context": {
+      "enabled": true,
+      "config": {
+        "recentTurns": 2,
+        "batchTurns": 4,
+        "batchRecords": 12,
+        "maintenanceTimeoutMs": 300000
+      }
+    }
+  },
+  "limits": {
+    "maxSteps": 8,
+    "maxRequests": 28,
+    "maxInFlight": 3,
+    "requestTimeoutMs": 300000
+  }
+}

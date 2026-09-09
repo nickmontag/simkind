@@ -12,7 +12,7 @@ token for API access, and renders authored content as text. Keys stay in the
 server process. The browser receives model IDs and connection availability.
 Restart after editing `.env`. Do not expose this operator interface publicly.
 
-1. Load Shared Decision, Workshop, Pump Crisis, or Orbital Greenhouse.
+1. In More → Setup, load Shared Decision, Workshop, Pump Crisis, Orbital Greenhouse, or Small Economy.
 2. Edit the authoritative scenario, character JSON/Markdown, or run-config source.
    Alternatively, open Edit document fields and Load fields from source. Ordinary
    fields use the shipped schemas, including host-specific initial conditions.
@@ -25,15 +25,18 @@ Restart after editing `.env`. Do not expose this operator interface publicly.
    Keys are referenced by local environment variable names, never pasted here.
 4. Validate to inspect effective configuration, overlay sources, and initial
    character states. Invalid contracts block launch.
-5. Start, then Step once or Run to the configured step limit. Pause dispatch stops
+5. Start a run. Small Economy opens a per-character turn report with Next turn,
+   Play live/Pause, Back, and recorded-turn playback. Other hosts retain their
+   execution controls in More → Diagnostics. There, Step or Run advances to
+   the configured step limit. Pause dispatch stops
    automatic progression after the current opportunity finishes. Advance host
    progresses the simulation with dispatch paused; Step enables one new decision
    opportunity. Stop aborts local requests and marks incomplete evidence.
-6. Select a perspective and event. Decision records show the actual context;
+6. In More → Diagnostics, select a perspective and event. Decision records show the actual context;
    actions link proposals, supplied contracts, and outcomes. The operator can
    inspect all records. The perspective selector is an operator filter, not an
    access-control or redaction mechanism, and never changes model input.
-7. Save checkpoint / run writes a new immutable recording. Settled runs include a
+7. In More → Saved runs, Save current run writes a new immutable recording. Settled runs include a
    checkpoint; unresolved or stopped runs retain playback evidence. Open playback
    loads and verifies the saved files without calls to models or host tools.
 8. Branch from a supported checkpoint. Select a character, open Character state /
@@ -62,6 +65,14 @@ advance physics, or modify observations.
 
 ## Development
 
+Small Economy leads with a chronological activity list per character, including
+speech, offers, transfers, work, and changes in resources. Back, Next and replay
+share one turn cursor with the expandable market dashboard and CSV export.
+Single Next turn actions save their boundary; live runs also save at their limit. At the configured step limit, runs save
+automatically. Long recordings retain full playback even when their settled
+checkpoint exceeds 1 MiB; the UI reports the resulting loss of resumability.
+See [economy observation and rules](economy.md).
+
 ```sh
 npm run playground -- --fixture --port 4317
 ```
@@ -71,3 +82,13 @@ provider. It is separate from the live onboarding flow. HTTP/session tests cover
 editing, validation, save/open, immutable branches, redaction, and local API access.
 The browser is a client of the public package through `playground/session.ts`;
 there is no second simulation runtime in the UI.
+
+## Unattended sessions
+
+For a long run independent of the browser and playground server, use the
+[supervised CLI workflow](durable-runs.md). It writes a live status report, settled
+checkpoints, and terminal or interruption evidence. Its worker does not attach to
+the live turn controls; inspect its report during execution and its exported
+archive afterward. New reference launches use the
+[state/event perception contract](building-simulations.md); existing recordings
+continue to select their exact host implementation.

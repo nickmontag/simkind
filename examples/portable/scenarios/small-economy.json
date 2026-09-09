@@ -1,0 +1,110 @@
+{
+  "specVersion": "0.2.0-draft.2",
+  "kind": "scenario",
+  "id": "scenario:small-economy",
+  "resources": {
+    "character:ada": {
+      "path": "characters/ada.simkind.json"
+    },
+    "character:bram": {
+      "path": "characters/bram.simkind.json"
+    },
+    "character:cleo": {
+      "path": "characters/cleo.simkind.json"
+    },
+    "character:dev": {
+      "path": "characters/dev.simkind.json"
+    },
+    "catalog:economy": {
+      "path": "tools/economy.json"
+    }
+  },
+  "host": {
+    "contractId": "example.economy",
+    "version": "1.1.0"
+  },
+  "cast": [
+    {
+      "instanceId": "simkin:ada",
+      "characterRef": "character:ada"
+    },
+    {
+      "instanceId": "simkin:bram",
+      "characterRef": "character:bram"
+    },
+    {
+      "instanceId": "simkin:cleo",
+      "characterRef": "character:cleo"
+    },
+    {
+      "instanceId": "simkin:dev",
+      "characterRef": "character:dev"
+    }
+  ],
+  "toolCatalogRef": "catalog:economy",
+  "initialConditions": {
+    "days": 12,
+    "roundsPerDay": 4,
+    "foodMultiplier": 1,
+    "publicWealth": false,
+    "people": {
+      "simkin:ada": {
+        "inventory": {
+          "coins": 40,
+          "food": 8,
+          "timber": 0,
+          "tools": [
+            4
+          ]
+        },
+        "skills": {
+          "food": 4,
+          "timber": 1,
+          "tools": 1
+        }
+      },
+      "simkin:bram": {
+        "inventory": {
+          "coins": 8,
+          "food": 2,
+          "timber": 8,
+          "tools": []
+        },
+        "skills": {
+          "food": 1,
+          "timber": 4,
+          "tools": 1
+        }
+      },
+      "simkin:cleo": {
+        "inventory": {
+          "coins": 15,
+          "food": 3,
+          "timber": 2,
+          "tools": [
+            4,
+            4
+          ]
+        },
+        "skills": {
+          "food": 1,
+          "timber": 1,
+          "tools": 2
+        }
+      },
+      "simkin:dev": {
+        "inventory": {
+          "coins": 2,
+          "food": 2,
+          "timber": 0,
+          "tools": []
+        },
+        "skills": {
+          "food": 2,
+          "timber": 2,
+          "tools": 1
+        }
+      }
+    }
+  }
+}

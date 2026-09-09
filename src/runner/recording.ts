@@ -34,6 +34,7 @@ export async function loadRun(directory: string): Promise<RecordedRun> {
   const parsed = readDocument(await read('run.json'));
   if (!parsed.ok || parsed.value.kind !== 'run-bundle') throw new Error('Invalid run manifest.');
   const manifest = parsed.value;
+  if (manifest.profiles?.['simkind.archive']?.required) throw new Error('Use openArchivedRun for paged archive recordings.');
   const events: RunEvent[] = [];
   const ids = new Set<string>();
   for (const stream of manifest.eventStreams) {

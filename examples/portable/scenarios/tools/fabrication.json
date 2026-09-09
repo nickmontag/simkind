@@ -1,0 +1,425 @@
+{
+  "specVersion": "0.2.0-draft.2",
+  "kind": "tool-catalog",
+  "id": "catalog:fabrication",
+  "host": {
+    "contractId": "example.fabrication",
+    "version": "1.0.0"
+  },
+  "tools": [
+    {
+      "id": "say",
+      "version": "1.0.0",
+      "description": "Speak publicly (to=null) or privately. Speech, promises, ownership stakes, and commission claims are nonbinding; use offers for actual transfers and paid work.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "text",
+          "to"
+        ],
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1500
+          },
+          "to": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "lifecycle": {
+        "asynchronous": false,
+        "cancellable": false
+      }
+    },
+    {
+      "id": "claim_order",
+      "version": "1.0.0",
+      "description": "Claim an available customer order at its exact revision. No money or products move. Only the claimant can deliver; no exclusivity is created by speech.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "orderId",
+          "orderRevision"
+        ],
+        "properties": {
+          "orderId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "orderRevision": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000000
+          }
+        }
+      },
+      "lifecycle": {
+        "asynchronous": false,
+        "cancellable": false
+      }
+    },
+    {
+      "id": "deliver",
+      "version": "1.0.0",
+      "description": "Deliver the complete order from your available stock by its inclusive deadline and collect payment. Premium stock can satisfy a standard order. Recheck its current revision after customer amendments.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "orderId",
+          "orderRevision"
+        ],
+        "properties": {
+          "orderId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "orderRevision": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000000
+          }
+        }
+      },
+      "lifecycle": {
+        "asynchronous": false,
+        "cancellable": false
+      }
+    },
+    {
+      "id": "release_order",
+      "version": "1.0.0",
+      "description": "Release your claimed order so another eligible character can take it. No cancellation fee.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "orderId"
+        ],
+        "properties": {
+          "orderId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        }
+      },
+      "lifecycle": {
+        "asynchronous": false,
+        "cancellable": false
+      }
+    },
+    {
+      "id": "publish_lead",
+      "version": "1.0.0",
+      "description": "Make a private customer lead visible and claimable by everyone. This does not assign it or transfer revenue.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "orderId"
+        ],
+        "properties": {
+          "orderId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        }
+      },
+      "lifecycle": {
+        "asynchronous": false,
+        "cancellable": false
+      }
+    },
+    {
+      "id": "make",
+      "version": "1.0.0",
+      "description": "Spend one productive shift per 4-turn day. Consume one material per unit and one equipment use per batch; finish next turn. Quantity cannot exceed your fabrication skill. Equipment with 3–4 uses at admission makes premium; 1–2 makes standard. equipment=\"owned\" selects your best available tool; otherwise supply a current rental ID.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "quantity",
+          "equipment"
+        ],
+        "properties": {
+          "quantity": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 8
+          },
+          "equipment": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        }
+      },
+      "lifecycle": {
+        "asynchronous": true,
+        "cancellable": true
+      }
+    },
+    {
+      "id": "repair",
+      "version": "1.0.0",
+      "description": "Spend your productive shift and one material to restore your most worn owned tool by your repair skill, maximum 4 uses. Completes next turn. Cannot repair rented equipment.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [],
+        "properties": {}
+      },
+      "lifecycle": {
+        "asynchronous": true,
+        "cancellable": true
+      }
+    },
+    {
+      "id": "source",
+      "version": "1.0.0",
+      "description": "Spend your productive shift to buy 1–8 materials from an external supplier at your published sourcing price. Cash leaves the shop economy; delivery is immediate.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "quantity"
+        ],
+        "properties": {
+          "quantity": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 8
+          }
+        }
+      },
+      "lifecycle": {
+        "asynchronous": false,
+        "cancellable": false
+      }
+    },
+    {
+      "id": "offer",
+      "version": "1.0.0",
+      "description": "Post a binding offer, reserving give. Trade: exchange give for want (quantity=0,rentalTurns=0). Job: give is wage, want={}, quantity=1–8; reserve your materials and one tool with at least minUses for a worker to manufacture for you next turn (rentalTurns=0). Rental: give={tools:1}, want={cash:fee}, quantity=0, rentalTurns=1–12; lend equipment with at least minUses, automatically returned after that many turns, worn by use. minUses constrains tools on both sides of a trade. Maximum 3 open offers; expiresAt is an absolute turn at most 12 turns ahead.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "to",
+          "give",
+          "want",
+          "expiresAt",
+          "minUses",
+          "quantity",
+          "rentalTurns"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "trade",
+              "job",
+              "rental"
+            ]
+          },
+          "to": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "give": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "cash": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000000
+              },
+              "materials": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000000
+              },
+              "standard": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000000
+              },
+              "premium": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000000
+              },
+              "tools": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000000
+              }
+            }
+          },
+          "want": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "cash": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000000
+              },
+              "materials": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000000
+              },
+              "standard": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000000
+              },
+              "premium": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000000
+              },
+              "tools": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000000
+              }
+            }
+          },
+          "expiresAt": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000000
+          },
+          "minUses": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 8
+          },
+          "rentalTurns": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 12
+          }
+        }
+      },
+      "lifecycle": {
+        "asynchronous": false,
+        "cancellable": false
+      }
+    },
+    {
+      "id": "accept",
+      "version": "1.0.0",
+      "description": "Accept a current offer. Trades and rental fees settle atomically. Jobs use your shift and pay on next-turn completion; employer receives output and worn equipment. Revalidates resources, recipient, deadline, and skill.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "offerId"
+        ],
+        "properties": {
+          "offerId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        }
+      },
+      "lifecycle": {
+        "asynchronous": true,
+        "cancellable": true
+      }
+    },
+    {
+      "id": "cancel",
+      "version": "1.0.0",
+      "description": "Cancel your open offer and reclaim reservations. Accepted work and rentals keep their terms.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "offerId"
+        ],
+        "properties": {
+          "offerId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        }
+      },
+      "lifecycle": {
+        "asynchronous": false,
+        "cancellable": false
+      }
+    },
+    {
+      "id": "return_tool",
+      "version": "1.0.0",
+      "description": "Return idle rented equipment early to its owner, with its actual remaining uses. Rental fees are not refunded.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "loanId"
+        ],
+        "properties": {
+          "loanId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        }
+      },
+      "lifecycle": {
+        "asynchronous": false,
+        "cancellable": false
+      }
+    },
+    {
+      "id": "fund_rent",
+      "version": "1.0.0",
+      "description": "Move your available cash into the shared rent fund. Outstanding rent is paid first; production resumes when arrears reach zero. This creates no ownership stake.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "amount"
+        ],
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100000
+          }
+        }
+      },
+      "lifecycle": {
+        "asynchronous": false,
+        "cancellable": false
+      }
+    }
+  ]
+}

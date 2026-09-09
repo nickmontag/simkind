@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { mkdtemp, rm, writeFile, readFile } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile, readFile, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PlaygroundSession } from '../playground/session.js';
@@ -16,6 +16,29 @@ const fixture: ModelConnection = { public: { provider: 'fixture', model: 'test',
 afterEach(async () => { await Promise.all(temp.splice(0).map(path => rm(path, { recursive: true, force: true }))); });
 async function setup() { const output = await mkdtemp(join(tmpdir(), 'simkind-playground-')); temp.push(output); return { session: new PlaygroundSession(root, output, {}, fixture), output }; }
 describe('playground authoring, playback and immutable runs', () => {
+  it('serves changed client code and its imports without restarting the live session', async () => {
+    const { output } = await setup(); const frontendRoot = join(output, 'frontend'); await mkdir(frontendRoot);
+    await writeFile(join(frontendRoot, 'index.html'), '<meta name="simkind-session" content="SESSION_TOKEN"><button id="old">Old</button>');
+    await writeFile(join(frontendRoot, 'client.ts'), 'import { label } from "./label.js"; document.title = label;');
+    await writeFile(join(frontendRoot, 'label.ts'), 'export const label = "initial-bundle";');
+    const { server, origin, session, token } = await createPlaygroundServer({ port: 0, fixture: true, runRoot: output, frontendRoot });
+    try {
+      const draft = await session.template('small-economy.json');
+      expect(draft.slots.primary.settings?.maxOutputTokens).toBeUndefined();
+      session.start(draft); await session.step();
+      const before = session.state();
+      expect(await (await fetch(origin + '/client.js')).text()).toContain('initial-bundle');
+      await writeFile(join(frontendRoot, 'index.html'), '<meta name="simkind-session" content="SESSION_TOKEN"><button id="setup">Setup</button>');
+      await writeFile(join(frontendRoot, 'label.ts'), 'export const label = "updated-setup-handler";');
+      await writeFile(join(frontendRoot, 'client.ts'), 'import { label } from "./label.js"; document.getElementById("setup").onclick = () => document.title = label;');
+      expect(await (await fetch(origin)).text()).toContain('id="setup"');
+      const script = await fetch(origin + '/client.js');
+      expect(script.headers.get('cache-control')).toBe('no-store');
+      expect(await script.text()).toContain('updated-setup-handler');
+      expect((await fetch(origin + '/client.js', { headers: { origin: 'https://untrusted.example' } })).status).toBe(403);
+      expect(await (await fetch(origin + '/api/state', { headers: { 'x-simkind-session': token } })).json()).toEqual(before);
+    } finally { await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve())); }
+  });
   it('builds ordinary fields from shipped schemas and validates form saves without losing optional extensions', async () => {
     const { session } = await setup(); const draft = await session.template('shared-decision.json');
     const source = JSON.parse(draft.sources['characters/aya.simkind.json']);
@@ -96,7 +119,7 @@ describe('playground authoring, playback and immutable runs', () => {
   });
   it('rejects foreign origins, missing session tokens, and unknown paths', async () => {
     const { output } = await setup();
-    const { server, origin, token } = await createPlaygroundServer({ port: 0, fixture: true, runRoot: output });
+    const { server, origin, token, session } = await createPlaygroundServer({ port: 0, fixture: true, runRoot: output });
     try {
       expect((await fetch(origin + '/api/state')).status).toBe(403);
       expect((await fetch(origin + '/api/state', { headers: { 'x-simkind-session': token, origin: 'https://untrusted.example' } })).status).toBe(403);
@@ -104,6 +127,19 @@ describe('playground authoring, playback and immutable runs', () => {
       expect((await fetch(origin + '/not-a-file', { headers: { 'x-simkind-session': token } })).status).toBe(404);
       const response = await fetch(origin); expect(response.headers.get('content-security-policy')).toContain("frame-ancestors 'none'");
       expect(await response.text()).toContain('Simkind');
+      session.start(await session.template('shared-decision.json')); await session.step();
+      const full = session.state(); if (!('manifest' in full) || !full.manifest || !full.events) throw new Error('fixture');
+      const get = (runId: string) => fetch(`${origin}/api/state?runId=${encodeURIComponent(runId)}&after=${full.events!.length}`, { headers: { 'x-simkind-session': token } }).then(r => r.json());
+      expect(await get(full.manifest.runId)).toMatchObject({ events: [], eventsOffset: full.events.length });
+      expect((await get('run:previous')).events).toEqual(full.events);
+      // Advancing physics must not silently request more paid decisions.
+      const headers = { 'x-simkind-session': token, 'content-type': 'application/json' };
+      expect((await fetch(origin + '/api/advance', { method: 'POST', headers, body: '{}' })).status).toBe(200);
+      const advanced = await (await fetch(origin + '/api/state', { headers })).json();
+      expect(advanced.status).toMatchObject({ steps: 2, requests: full.events.filter(e => e.type === 'request').length, paused: true });
+      expect((await fetch(origin + '/api/step', { method: 'POST', headers, body: '{}' })).status).toBe(200);
+      const stepped = await (await fetch(origin + '/api/state', { headers })).json();
+      expect(stepped.status).toMatchObject({ steps: 3, requests: full.events.filter(e => e.type === 'request').length * 2, paused: false });
     } finally { await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve())); }
   });
 });

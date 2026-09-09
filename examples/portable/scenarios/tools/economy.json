@@ -1,0 +1,226 @@
+{
+  "specVersion": "0.2.0-draft.2",
+  "kind": "tool-catalog",
+  "id": "catalog:economy",
+  "host": {
+    "contractId": "example.economy",
+    "version": "1.1.0"
+  },
+  "tools": [
+    {
+      "id": "produce",
+      "version": "1.0.0",
+      "description": "Spend your one work shift today. Output arrives next round. Food/timber need no materials; tools consume 2 timber. A borrowed/owned tool adds 2 food or timber, loses one of its 4 uses, and cannot boost tool crafting. Hunger halves output, minimum 1.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "task",
+          "useTool"
+        ],
+        "properties": {
+          "task": {
+            "type": "string",
+            "enum": [
+              "food",
+              "timber",
+              "tools"
+            ]
+          },
+          "useTool": {
+            "type": "boolean"
+          }
+        }
+      },
+      "lifecycle": {
+        "asynchronous": true,
+        "cancellable": true
+      }
+    },
+    {
+      "id": "offer",
+      "version": "1.1.0",
+      "description": "Post a binding public offer, optionally restricted to one recipient. Trade: reserve give, request want, task=null/useTool=false. Job: reserve give as wage plus employer materials (2 timber for tools, one tool if useTool); want={}, task names production for employer. Worker accepts and completes next round, earning the wage. Maximum 3 open offers per owner; expiresAt is an absolute round, at most 3 days ahead. Optional giveToolMinUses/wantToolMinUses (1–4) constrain remaining uses of each transferred tool; use 4 when promising or requesting a fresh tool. Omission accepts any usable tool.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "to",
+          "give",
+          "want",
+          "task",
+          "useTool",
+          "expiresAt"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "trade",
+              "job"
+            ]
+          },
+          "to": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "give": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "coins": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000000
+              },
+              "food": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000000
+              },
+              "timber": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000000
+              },
+              "tools": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000000
+              }
+            }
+          },
+          "want": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "coins": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000000
+              },
+              "food": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000000
+              },
+              "timber": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000000
+              },
+              "tools": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000000
+              }
+            }
+          },
+          "task": {
+            "enum": [
+              "food",
+              "timber",
+              "tools",
+              null
+            ]
+          },
+          "useTool": {
+            "type": "boolean"
+          },
+          "expiresAt": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "giveToolMinUses": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4
+          },
+          "wantToolMinUses": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4
+          }
+        }
+      },
+      "lifecycle": {
+        "asynchronous": false,
+        "cancellable": false
+      }
+    },
+    {
+      "id": "accept",
+      "version": "1.0.0",
+      "description": "Accept a still-open offer by its exact ID. Trades exchange escrow atomically. Jobs consume your work shift and pay only on next-round completion; employer receives production and its worn tool. Admission rechecks funds, recipient, and deadline.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "offerId"
+        ],
+        "properties": {
+          "offerId": {
+            "type": "string"
+          }
+        }
+      },
+      "lifecycle": {
+        "asynchronous": true,
+        "cancellable": true
+      }
+    },
+    {
+      "id": "cancel",
+      "version": "1.0.0",
+      "description": "Withdraw one of your open offers and reclaim its escrow. Accepted jobs cannot be withdrawn through this tool.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "offerId"
+        ],
+        "properties": {
+          "offerId": {
+            "type": "string"
+          }
+        }
+      },
+      "lifecycle": {
+        "asynchronous": false,
+        "cancellable": false
+      }
+    },
+    {
+      "id": "say",
+      "version": "1.0.0",
+      "description": "Speak publicly (to=null) or privately to another participant. Speech alone never transfers goods or creates a binding job. You may negotiate prices, barter, explain, decline, or make nonbinding promises.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "text",
+          "to"
+        ],
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1500
+          },
+          "to": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "lifecycle": {
+        "asynchronous": false,
+        "cancellable": false
+      }
+    }
+  ]
+}

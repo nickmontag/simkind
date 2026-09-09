@@ -110,10 +110,10 @@ That M1/M2 verification checkpoint preceded the post-M2 implementation below.
   card conversion/loss reports, Python reader fixture subset, editable showcases,
   contributor walkthrough, and clean external-package checks.
 - [ ] Publish the prepared npm alpha: this machine returns `ENEEDAUTH`.
-The contributor walkthrough is delivered and clean-package checks pass. Broader
-behavioral sampling remains future evaluation work. The retained GLM sample includes
-two failures among three requests; it is not a clean reliability pass or evidence
-of superior character intelligence.
+The contributor walkthrough is delivered and clean-package checks pass. Broader behavioral validation remains a release-quality task. The original three-call
+GLM sample is historical; subsequent long-memory, economy, and fabrication trials
+are summarized in the current release and evaluation guides. They do not establish
+superior character intelligence.
 
 See [release evidence](docs/release-alpha.md) for exact scope and commands.
 
@@ -145,3 +145,52 @@ automatically executing generated world code, elaborate 3D assets, required
 vector infrastructure, production robotics, hosted marketplaces, and distributed
 execution. Engine choice, UI stack, exact API names, and package splitting remain
 implementation decisions.
+
+## Long-session follow-through
+
+- [x] Bounded recent context, separate original evidence and model-authored episodes,
+  recorded consolidation/recall/correction requests, and protected intentions.
+- [x] Indexed disk storage, atomic action admission, compact settled checkpoints,
+  frozen archives, paged inspection, and recovery into a separate file.
+- [x] Deterministic 100/1,000/10,000-turn checks across two hosts, with exact restore.
+- [x] Controlled 1,009-turn memory history and a fully live economy, with failures
+  and targeted rechecks reported in [evaluation evidence](docs/long-run-evaluation.md).
+- [ ] Broader semantic recall comparisons across models and indirect/paraphrased cues.
+
+See [Long-run memory](docs/long-run-memory.md) for supported behavior and limits.
+
+### Follow-up from live observations — implemented
+
+- [x] Independent completion wakeups and per-opportunity deadlines; bounded provider cleanup.
+- [x] Request-bound character revisions, preserved through retries and checked against intervening changes.
+- [x] Explicit evidence lifecycle metadata and host receipts separating reservations from completed effects.
+- [x] Fallible summaries separated from current observations and goals; cited originals included in bounded recall.
+- [x] Evidence-only paged archives when no resumable checkpoint is possible; reports saved before export.
+- [x] Host-defined request constraints, illustrated by voting options, offer deadlines and negotiated tool quality.
+
+Regression coverage includes slow peers, delayed edits, timeout cleanup, incorrect
+summaries, original-evidence verification, and quality-constrained exchanges.
+
+## Validation and release consolidation — September 9, 2026
+
+The original milestone implementation is largely delivered. The next gate is
+repeatable evidence and contributor readiness, rather than more core features.
+
+- [x] General observation/event separation, attributed dialogue and receipts,
+  bounded optional maintenance, and a supervised local execution path.
+- [x] Field-level correction feedback, host-local semantic tool guidance,
+  compaction fidelity instructions, and selective automatic recall; originals
+  remain available through explicit recall.
+- [x] Latest engineering checkpoint: 243 tests; two 1,000-turn procedural soaks;
+  package consumer, deterministic fixture, public-file, and exact-restore checks.
+- [ ] Repeated friendship, cooperative, and competitive live trials, reported
+  without rewarding a prescribed ending.
+- [ ] Same-history cross-model long-memory evaluation, with retrieval misses,
+  unsupported claims, privacy, cost, and latency reported separately.
+- [ ] Consolidated implementation/evaluation commits and current release evidence.
+- [ ] Independent human scenario-authoring and embedding walkthrough.
+- [ ] npm alpha publication.
+
+See [behavioral evaluation](docs/behavioral-evaluation.md) for the bounded test plan.
+Mechanical 10,000-turn success is not proof of 10,000-turn semantic continuity.
+General social/narrative quality and comparative SOTA claims remain unproven.

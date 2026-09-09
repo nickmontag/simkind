@@ -17,6 +17,7 @@ export class ModelRuntime<Request extends ModelRequest, Input> {
   private readonly completed: ModelCompletion<Request, Input>[] = [];
   private readonly maxInFlight: number;
   private generation = 0;
+  private readonly waiters = new Set<() => void>();
 
   constructor(
     private readonly fulfill: (request: Request) => Promise<Input>,
@@ -70,9 +71,22 @@ export class ModelRuntime<Request extends ModelRequest, Input> {
         },
       );
       this.inFlight.add(task);
-      void task.then(() => this.inFlight.delete(task));
+      void task.then(() => {
+        this.inFlight.delete(task);
+        for (const wake of [...this.waiters]) wake();
+      });
     }
     return out;
+  }
+
+  /** Wake on one completion, including cleanup from an expired generation. */
+  nextCompletion(signal?: AbortSignal): Promise<void> {
+    if (this.completed.length || !this.inFlight.size || signal?.aborted) return Promise.resolve();
+    return new Promise(resolve => {
+      const wake = () => { this.waiters.delete(wake); signal?.removeEventListener('abort', wake); resolve(); };
+      this.waiters.add(wake);
+      signal?.addEventListener('abort', wake, { once: true });
+    });
   }
 
   async settled(): Promise<void> {

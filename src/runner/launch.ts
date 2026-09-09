@@ -1,3 +1,4 @@
+import { contextProfile, contextConfigSchema } from './long-memory.js';
 import { continuityProfile, continuityConfigSchema, reviseTool } from './continuity.js';
 import { canonicalJson, compileDataSchema, validateDocument, validateRecord, writeCharacter, type FeatureSettings, type FormatDiagnostic,
   type FormatResult, type JsonObject, type JsonValue, type PortableDocument, type PublicModel } from '../format/index.js';
@@ -76,11 +77,12 @@ export function prepareLaunch(
       profileVersions[profileId] = profile.version;
       const supported = profileId === memoryRetrievalProfile.id ? profile.version === memoryRetrievalProfile.version
         : profileId === continuityProfile.id ? profile.version === continuityProfile.version
+        : profileId === contextProfile.id ? profile.version === contextProfile.version
         : descriptor.profiles?.[profileId]?.version === profile.version;
       if (!supported && profile.required) issue('UNSUPPORTED_REQUIRED_PROFILE', `/profiles/${pointerPart(profileId)}`, 'Install support for this exact required profile version.', doc.id);
       if (supported && Object.hasOwn(doc.extensions ?? {}, profileId)) {
         try {
-          const schema = (profileId === memoryRetrievalProfile.id || profileId === continuityProfile.id) ? { type: 'object', properties: {}, additionalProperties: false } : descriptor.profiles![profileId].extensionSchema;
+          const schema = (profileId === memoryRetrievalProfile.id || profileId === continuityProfile.id || profileId === contextProfile.id) ? { type: 'object', properties: {}, additionalProperties: false } : descriptor.profiles![profileId].extensionSchema;
           diagnostics.push(...compileDataSchema(schema)(doc.extensions![profileId]));
         } catch { issue('INVALID_PROFILE_SCHEMA', '/profiles', 'The installed profile must provide a valid extension schema.', doc.id); }
       }
@@ -111,18 +113,21 @@ export function prepareLaunch(
     const defaults: FeatureSettings = profileVersions[memoryRetrievalProfile.id] === memoryRetrievalProfile.version
       ? { [memoryRetrievalProfile.id]: structuredClone(memoryRetrievalProfile.defaults) } : {};
     if (profileVersions[continuityProfile.id] === continuityProfile.version) defaults[continuityProfile.id] = structuredClone(continuityProfile.defaults);
+    if (profileVersions[contextProfile.id] === contextProfile.version) defaults[contextProfile.id] = structuredClone(contextProfile.defaults);
     let features: FeatureSettings = defaults;
     const layers = [defaults, scenario.recommendations?.features ?? {}, config.features ?? {}, config.perInstance?.[member.instanceId]?.features ?? {}];
     try { for (const layer of layers.slice(1)) features = overlayConfiguration(json(features), json(layer)) as FeatureSettings; }
     catch { issue('CONFIGURATION_TYPE_CONFLICT', '/features', 'Override values must retain their declared types.', config.id); }
     for (const [featureId, feature] of Object.entries(features)) {
       if (!Object.hasOwn(profileVersions, featureId)) issue('UNDECLARED_PROFILE', '/features', 'Declare the profile for every configured feature.', config.id);
-      if (feature.enabled && !([memoryRetrievalProfile, continuityProfile].some(profile => profile.id === featureId && profileVersions[featureId] === profile.version))) issue('UNSUPPORTED_FEATURE', '/features', 'Install a runner implementation for this enabled feature.', config.id);
+      if (feature.enabled && !([memoryRetrievalProfile, continuityProfile, contextProfile].some(profile => profile.id === featureId && profileVersions[featureId] === profile.version))) issue('UNSUPPORTED_FEATURE', '/features', 'Install a runner implementation for this enabled feature.', config.id);
+      if (featureId === contextProfile.id) diagnostics.push(...compileDataSchema(contextConfigSchema)(feature.config ?? {}));
       if (featureId === continuityProfile.id) diagnostics.push(...compileDataSchema(continuityConfigSchema)(feature.config ?? {}));
       if (featureId === memoryRetrievalProfile.id) diagnostics.push(...validateMemoryConfig(feature.config).map((entry) => ({ ...entry, documentId: config.id, pointer: '/features/' + pointerPart(featureId) + '/config' + entry.pointer })));
     }
+    if (features[contextProfile.id]?.enabled && !features[continuityProfile.id]?.enabled) issue('CONTEXT_REQUIRES_CONTINUITY', '/features', 'Enable continuity for archived context.');
     const hostTools = descriptor.toolCatalog.tools.map((tool) => tool.id);
-    if (hostTools.includes(reviseTool.id)) issue('RESERVED_TOOL_ID', '/host', 'The continuity tool ID is reserved.');
+    if (hostTools.some(id => [reviseTool.id, 'simkind.recall', 'simkind.compact'].includes(id))) issue('RESERVED_TOOL_ID', '/host', 'The continuity tool ID is reserved.');
     const permissions = member.allowedTools ?? hostTools;
     const allowedTools = config.perInstance?.[member.instanceId]?.allowedTools ?? permissions;
     if (permissions.some((tool) => !hostTools.includes(tool)) || allowedTools.some((tool) => !permissions.includes(tool))) issue('INVALID_TOOL_PERMISSION', '/cast', 'Tools must exist and run overrides may only narrow scenario permissions.', scenario.id);

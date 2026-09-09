@@ -1,0 +1,79 @@
+{
+  "specVersion": "0.2.0-draft.2",
+  "kind": "scenario",
+  "id": "scenario:leadership-contest",
+  "resources": {
+    "character:aya": {
+      "path": "characters/leadership-contest-aya.simkind.json"
+    },
+    "character:mira": {
+      "path": "characters/leadership-contest-mira.simkind.json"
+    },
+    "character:sol": {
+      "path": "characters/leadership-contest-sol.simkind.json"
+    },
+    "catalog:conversation": {
+      "path": "tools/conversation.json"
+    }
+  },
+  "host": {
+    "contractId": "example.conversation",
+    "version": "1.0.0"
+  },
+  "cast": [
+    {
+      "instanceId": "simkin:aya",
+      "characterRef": "character:aya",
+      "initialState": {
+        "intentions": [
+          {
+            "id": "intention:0",
+            "description": "Seek recognition and decide whether leadership is worth the cost."
+          }
+        ]
+      }
+    },
+    {
+      "instanceId": "simkin:mira",
+      "characterRef": "character:mira",
+      "initialState": {
+        "intentions": [
+          {
+            "id": "intention:0",
+            "description": "Make coordination work visible and secure real influence."
+          }
+        ]
+      }
+    },
+    {
+      "instanceId": "simkin:sol",
+      "characterRef": "character:sol",
+      "initialState": {
+        "intentions": [
+          {
+            "id": "intention:0",
+            "description": "Win support for leading the team without giving up all discretion."
+          }
+        ]
+      }
+    }
+  ],
+  "toolCatalogRef": "catalog:conversation",
+  "initialConditions": {
+    "sharedContext": "Three colleagues must each record a preference for the next team lead: Aya, Mira, or Sol. Votes are public and revisable; there is no automatic winner, binding coalition, or power transfer. They have eight discussion opportunities each. They can campaign, question promises, bargain, withhold a vote, or change their minds. The role carries recognition but extra coordination work. No preferred winner.",
+    "options": [
+      "Aya",
+      "Mira",
+      "Sol"
+    ]
+  },
+  "recommendations": {
+    "features": {
+      "simkind.memory-retrieval": {
+        "config": {
+          "maxItems": 6
+        }
+      }
+    }
+  }
+}

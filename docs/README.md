@@ -9,11 +9,16 @@ experimental 0.2.0-alpha.1 library; proposed features are labeled separately.
 | Guide | Use it to |
 | --- | --- |
 | [Architecture](architecture.md) | Understand the library's boundaries and lifecycle |
+| [Building simulations](building-simulations.md) | Design scenario rules, perspectives, receipts, dialogue, and general behavioral evaluations |
+| [Behavioral evaluation](behavioral-evaluation.md) | Compare social, cooperative, competitive, and long-memory behavior without prescribing outcomes |
+| [Durable runs](durable-runs.md) | Supervise unattended sessions, monitor reports, and recover interrupted workers |
 | [Host integration](integration.md) | Connect character decisions to your simulation |
 | [Experimental character format](character-format.md) | Validate and round-trip the first Phase 2 character document subset |
 | [Portable scenarios and runner](portable-scenarios.md) | Author and run portable casts and situations |
 | [Continuity](continuity.md) | Retain evidence and revise optional intentions/interpretations |
 | [Local playground](playground.md) | Author, inspect, step, and open recorded runs |
+| [Small Economy](economy.md) | Watch unequal resources, negotiated trades and jobs, then inspect recorded market history |
+| [Fabrication shop](fabrication-shop.md) | Inject customer orders, negotiate paid work and equipment rentals, and follow each character through the business trial |
 | [Checkpoints and branches](checkpoints.md) | Distinguish playback, replay, resume, and fresh continuation |
 | [Operator interventions](interventions.md) | Preview and record host-defined world changes without granting character tools |
 | [Providers, embedding, and spatial hosts](providers-and-spatial.md) | Connect remote/local models and an optional 3D host |
@@ -39,3 +44,6 @@ Use current guides for setup and supported behavior.
 These links open the repository because design proposals and historical reports
 are intentionally excluded from the installable package. Local planning notes
 are also excluded; they are not part of the project's public documentation.
+
+- [Long-run memory](long-run-memory.md): bounded context, model consolidation, indexed evidence, archives, and recovery.
+- [Long-run evaluation](long-run-evaluation.md): procedural scaling, controlled live recall, failures, and a fully live economy.

@@ -3,7 +3,7 @@ import { randomBytes } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { parseEnv } from 'node:util';
-import { build } from 'esbuild';
+import { bundleClient } from './frontend.js';
 import { readJson } from 'simkind/format';
 import { PlaygroundSession, type Draft } from './session.js';
 import type { HostIntervention, StateEdit } from 'simkind/runner';
@@ -11,16 +11,15 @@ import { documentFields, saveDocumentFields } from './authoring.js';
 import type { PortableDocument } from 'simkind/format';
 
 /** Local operator interface. Its session token is never part of a portable artifact. */
-export async function createPlaygroundServer(options: { port?: number; fixture?: boolean; runRoot?: string } = {}) {
+export async function createPlaygroundServer(options: { port?: number; fixture?: boolean; runRoot?: string; frontendRoot?: string } = {}) {
   const appRoot = new URL('.', import.meta.url).pathname;
+  const frontendRoot = options.frontendRoot ?? appRoot;
   const token = randomBytes(32).toString('hex');
   let fileEnv: ReturnType<typeof parseEnv> = {};
   try { fileEnv = parseEnv(await readFile('.env', 'utf8')); } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
   const env = { ...fileEnv, ...process.env };
   const session = new PlaygroundSession(resolve(appRoot, '../examples/portable/scenarios'), options.runRoot ?? resolve('.internal/playground-runs'), env,
-    options.fixture ? { public: { provider: 'fixture', model: 'no-action-v1', settings: {} }, capabilities: { text: true, json: true }, fulfill: async () => ({ output: { toolId: null, arguments: {} } }) } : undefined);
-  const compiled = await build({ entryPoints: [resolve(appRoot, 'client.ts')], bundle: true, write: false, format: 'esm', platform: 'browser', target: 'es2022', minify: false });
-  const script = compiled.outputFiles[0].text;
+    options.fixture ? { public: { provider: 'fixture', model: 'no-action-v1', settings: {} }, capabilities: { text: true, json: true }, fulfill: async context => ({ output: context.purpose === 'consolidation' ? { toolId: 'simkind.compact', arguments: { summary: 'Deterministic fixture: original experiences remain available.', episodes: [] } } : { toolId: null, arguments: {} } }) } : undefined);
   let origin = '';
   function send(response: ServerResponse, code: number, value: unknown) { response.writeHead(code, { 'Content-Type': 'application/json' }); response.end(JSON.stringify(value)); }
   async function body(request: IncomingMessage) {
@@ -41,13 +40,16 @@ export async function createPlaygroundServer(options: { port?: number; fixture?:
       const path = new URL(request.url!, origin).pathname;
       if (request.method === 'GET' && ['/', '/client.js', '/style.css'].includes(path)) {
         const type = path === '/' ? 'text/html' : path.endsWith('.js') ? 'text/javascript' : 'text/css';
-        const source = path === '/' ? (await readFile(resolve(appRoot, 'index.html'), 'utf8')).replace('SESSION_TOKEN', token)
-          : path === '/client.js' ? script : await readFile(resolve(appRoot, 'style.css'), 'utf8');
+        const source = path === '/' ? (await readFile(resolve(frontendRoot, 'index.html'), 'utf8')).replace('SESSION_TOKEN', token)
+          : path === '/client.js' ? await bundleClient(frontendRoot) : await readFile(resolve(frontendRoot, 'style.css'), 'utf8');
         response.writeHead(200, { 'Content-Type': type }); response.end(source); return;
       }
       if (request.headers['x-simkind-session'] !== token) { send(response, 403, { error: 'Missing local session token.' }); return; }
       if (request.method === 'GET' && path === '/api/catalog') { send(response, 200, await session.catalog()); return; }
-      if (request.method === 'GET' && path === '/api/state') { send(response, 200, session.state()); return; }
+      if (request.method === 'GET' && path === '/api/state') {
+        const query = new URL(request.url!, origin).searchParams;
+        send(response, 200, session.state({ runId: query.get('runId') ?? '', after: Number(query.get('after') ?? 0), summary: query.get('view') === 'summary' })); return;
+      }
       if (request.method !== 'POST') { send(response, 404, { error: 'Unknown route.' }); return; }
       const data = await body(request);
       let result: unknown = {};
@@ -58,16 +60,19 @@ export async function createPlaygroundServer(options: { port?: number; fixture?:
         case '/api/validate': result = session.validate(data as unknown as Draft); break;
         case '/api/start': session.start(data as unknown as Draft); break;
         case '/api/step': session.dispatch(); await session.step(); break;
-        case '/api/advance': await session.step(); break;
+        case '/api/advance': session.pause(); await session.step(); break;
         case '/api/run': session.run(); break;
         case '/api/pause': session.pause(); break;
         case '/api/stop': session.stop(); break;
         case '/api/save': result = { name: await session.save() }; break;
         case '/api/open': await session.open(String(data.name)); break;
-        case '/api/branch': session.branch(); break;
+        case '/api/branch': await session.branch(); break;
         case '/api/intervene': session.intervene(String(data.actor), data.edit as StateEdit); break;
         case '/api/world-preview': result = session.previewWorld(data as unknown as HostIntervention); break;
         case '/api/world-intervene': session.interveneWorld(data as unknown as HostIntervention); break;
+        case '/api/evidence': result = session.evidence(Number(data.sequence)); break;
+        case '/api/economy-report': result = session.economySnapshot(Number(data.tick)); break;
+        case '/api/memory': result = session.memory(String(data.actor), data.query ?? {}); break;
         case '/api/compare': result = await session.compare(typeof data.name === 'string' ? data.name : undefined); break;
         case '/api/import': session.importPlayback(data as unknown as Parameters<PlaygroundSession['importPlayback']>[0]); break;
         case '/api/export': result = session.exportPlayback(data.redact === true); break;
@@ -76,6 +81,7 @@ export async function createPlaygroundServer(options: { port?: number; fixture?:
       send(response, 200, result);
     } catch (error) { send(response, 400, { error: error instanceof Error ? error.message : 'Request failed.' }); }
   });
+  server.once('close', () => session.dispose());
   await new Promise<void>(resolve => server.listen(options.port ?? 4317, '127.0.0.1', resolve));
   const address = server.address(); if (!address || typeof address === 'string') throw new Error('No local server address.');
   origin = `http://127.0.0.1:${address.port}`;

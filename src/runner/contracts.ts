@@ -3,6 +3,9 @@ import type {
   FormatDiagnostic, JsonObject, JsonValue, Limits, Observation, PortableDocument, PublicModel,
   RunConfig, Scenario, TimePoint, ToolCatalog,
 } from '../format/index.js';
+import type { MemoryEvidence } from './evidence.js';
+import type { RunnerStorage } from './storage.js';
+import type { HostPerception } from './perception.js';
 
 export interface ResolvedBundle {
   scenarioId: string;
@@ -53,8 +56,16 @@ export interface CharacterHost {
   revision(): number;
   /** Host scheduling policy, not a prescribed character strategy. */
   decisionActors(): string[];
+  /** Optional explicit scenario completion; an empty actor list alone is not completion. */
+  isComplete?(): boolean;
   observe(instanceId: string): Observation[];
+  /** Opt-in event/state separation. Legacy observe() remains supported. */
+  perceive?(instanceId: string): HostPerception;
+  /** Optional recorder-only observations with stable IDs. Recipients must be outside the cast; never sent to models. */
+  operatorObservations?(): Observation[];
   availableTools(instanceId: string): string[];
+  /** Actor-visible constraints frozen at observation time. Always intersected with the catalog schema. */
+  toolConstraints?(instanceId: string): Record<string, JsonObject>;
   submit(proposal: ActionProposal): ActionEvent[];
   drainEvents(): ActionEvent[];
   cancel(actionId: string): ActionEvent[];
@@ -88,12 +99,18 @@ export interface HostRegistration {
   descriptor: HostDescriptor;
   /** Read-only semantic checks before construction or provider dispatch. */
   validateInitial?(scenario: Scenario): FormatDiagnostic[];
-  create(launch: PreparedLaunch): CharacterHost;
+  create(launch: PreparedLaunch, runtime?: { storage: RunnerStorage }): CharacterHost;
   /** Must validate before constructing; never executes external actions. */
-  restore?(launch: PreparedLaunch, snapshot: JsonValue): CharacterHost;
+  restore?(launch: PreparedLaunch, snapshot: JsonValue, runtime?: { storage: RunnerStorage }): CharacterHost;
 }
 
 export interface DecisionContext {
+  purpose?: 'decision' | 'consolidation' | 'recall' | 'correction';
+  recent?: NonNullable<CharacterState['context']['memories']>;
+  memory?: { version: number; summary: string; evidenceThrough: number; authority?: 'interpretation' };
+  memoryEvidence?: MemoryEvidence[];
+  feedback?: string;
+  contextSize?: { characters: number; sections: Record<string, number> };
   runId: string;
   requestId: string;
   instanceId: string;
@@ -102,19 +119,28 @@ export interface DecisionContext {
   intentions: NonNullable<CharacterState['context']['intentions']>;
   memories: NonNullable<CharacterState['context']['memories']>;
   observations: Observation[];
+  perception?: { currentStateIds: string[]; eventIds: string[] };
   tools: ToolCatalog['tools'];
   outcomes: ActionEvent[];
   model: PublicModel;
 }
 
+export interface ProviderUsage {
+  inputTokens?: number;
+  outputTokens?: number;
+  cachedInputTokens?: number;
+  reasoningTokens?: number;
+  cost?: number;
+}
 export interface ProviderResult {
   output: unknown;
-  usage?: { inputTokens?: number; outputTokens?: number; cost?: number };
+  usage?: ProviderUsage;
+  telemetry?: { provider?: string; generationId?: string; finishReason?: string };
 }
 
 export interface ModelConnection {
   /** Only this explicit allowlisted metadata enters portable recordings. */
   public: PublicModel;
-  capabilities: { text: boolean; json: boolean };
+  capabilities: { text: boolean; json: boolean; jsonSchema?: boolean };
   fulfill(context: DecisionContext, signal: AbortSignal): Promise<ProviderResult>;
 }

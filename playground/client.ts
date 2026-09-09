@@ -3,6 +3,13 @@ import type { compareBranches, HostIntervention, InterventionOperation, Interven
 import type { JsonObject, PortableDocument, RunBundle, RunEvent } from 'simkind/format';
 import { projectScene, type SpatialView } from '../examples/spatial/viewer.js';
 import { schemaForm } from './schema-form.js';
+import { renderEconomy, downloadEconomy } from './economy-view.js';
+import type { EconomyReport } from '../examples/economy/report.js';
+import { economyRecap, renderEconomyRecap } from './economy-recap.js';
+import { shopReportSchemaId, type ShopReport } from '../examples/fabrication/report.js';
+import { orderSchema } from '../examples/fabrication/catalog.js';
+import { renderShopOrders, renderShopWorld, renderShopRecap, shopRecap } from './shop-view.js';
+import { economyFrames, shopFrames, TurnCursor, type TurnFrame } from './turn-timeline.js';
 
 const el = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id)! as T;
 const token = document.querySelector<HTMLMetaElement>('meta[name="simkind-session"]')!.content;
@@ -12,10 +19,34 @@ let currentPath = '';
 let selectedEvent = -1;
 let displayedRunId = '';
 let inspectingState = false;
-interface Snapshot { mode: string; busy: boolean; automatic?: boolean; canCheckpoint?: boolean; manifest?: RunBundle; events?: RunEvent[]; launch?: PreparedLaunch; host?: unknown; interventions?: { revision: number; operations: InterventionOperation[] }; status?: { steps: number; requests: number; pendingRequests: number; activeProviders: number; unresolvedActions: number; paused: boolean; stopped: boolean }; failure?: string }
+interface Snapshot { memoryEnabled?: boolean; mode: string; busy: boolean; economy?: EconomyReport; shop?: ShopReport; savedRecording?: string; saveNote?: string; automatic?: boolean; canCheckpoint?: boolean; manifest?: RunBundle; events?: RunEvent[]; eventsOffset?: number; launch?: PreparedLaunch; host?: unknown; interventions?: { revision: number; operations: InterventionOperation[] }; status?: { steps: number; requests: number; pendingRequests: number; activeProviders: number; unresolvedActions: number; paused: boolean; stopped: boolean }; failure?: string }
 let snapshot: Snapshot = { mode: 'authoring', busy: false };
 let readWorldFields = () => ({} as JsonObject);
 let previewedWorld: Omit<HostIntervention, 'operator'> | undefined;
+const cursor = new TurnCursor();
+let frames: TurnFrame[] = [];
+let shownBoundary = Infinity;
+let replayTimer: ReturnType<typeof setInterval> | undefined;
+let navigationBusy = false;
+let renderedReport = '';
+function stopReplay() { clearInterval(replayTimer); replayTimer = undefined; }
+function showPage(page: string) {
+  document.querySelectorAll<HTMLElement>('main > .page').forEach(node => { node.hidden = node.id !== page; });
+  el<HTMLDetailsElement>('app-menu').open = false;
+  window.scrollTo({ top: 0 });
+}
+function ended() { return !!snapshot.status?.stopped || !!snapshot.economy?.completed || !!snapshot.shop?.completed || (snapshot.status?.steps ?? 0) >= (snapshot.manifest?.limits.maxSteps ?? Infinity); }
+async function pauseForHistory() {
+  if (snapshot.mode === 'live' && snapshot.automatic) await api('pause', {});
+}
+async function seekTurn(index: number) {
+  stopReplay(); cursor.seek(frames, index); render(); await pauseForHistory();
+}
+let shownMarket: EconomyReport | undefined;
+let shownShop: ShopReport | undefined;
+let readOrderFields = () => ({} as JsonObject);
+let orderEdit: Omit<HostIntervention, 'operator'> | undefined;
+const isShop = (report: EconomyReport | ShopReport | undefined): report is ShopReport => report?.schema === shopReportSchemaId;
 let sourceForm: { path: string; source: string; read: () => JsonObject } | undefined;
 function invalidateWorldPreview() { previewedWorld = undefined; el<HTMLButtonElement>('world-apply').disabled = true; el('world-preview-result').textContent = 'Preview the current change before applying it.'; }
 function editWorldOperation() {
@@ -46,7 +77,7 @@ function captureDraft() {
 function syncSlot() {
   if (!draft) return;
   const slots: Record<string, Slot> = JSON.parse(el<HTMLTextAreaElement>('slots').value);
-  slots.primary = { ...slots.primary, provider: el<HTMLSelectElement>('provider').value as Slot['provider'], model: el<HTMLInputElement>('model').value,
+  slots.primary = { ...slots.primary, structuredOutputs: el<HTMLInputElement>('structured-outputs').checked, provider: el<HTMLSelectElement>('provider').value as Slot['provider'], model: el<HTMLInputElement>('model').value,
     ...(el<HTMLInputElement>('endpoint').value ? { endpoint: el<HTMLInputElement>('endpoint').value } : {}) };
   el<HTMLTextAreaElement>('slots').value = json(slots);
 }
@@ -56,6 +87,7 @@ function setDraft(value: Draft) {
   const selector = el<HTMLSelectElement>('document'); selector.replaceChildren(...Object.keys(value.sources).map(path => new Option(path, path))); selector.value = currentPath;
   el<HTMLTextAreaElement>('source').value = value.sources[currentPath];
   el<HTMLInputElement>('model').value = value.slots.primary.model;
+  el<HTMLInputElement>('structured-outputs').checked = value.slots.primary.structuredOutputs ?? false;
   el<HTMLSelectElement>('provider').value = value.slots.primary.provider;
   el<HTMLTextAreaElement>('slots').value = json(value.slots);
   el('scenario-title').textContent = currentPath.replace('.json', '').replaceAll('-', ' ');
@@ -73,22 +105,31 @@ async function catalog() {
 }
 function actorOf(event: RunEvent): string | undefined { const data = event.data as JsonObject; return (data.actor ?? data.recipient ?? (data.context as JsonObject | undefined)?.instanceId) as string | undefined; }
 function showEvent(event: RunEvent) {
+  if ((event.data as JsonObject).projection === 'observer-summary' || snapshot.memoryEnabled) {
+    inspectingState = false; selectedEvent = event.sequence;
+    void api('evidence', { sequence: event.sequence }).then(value => { el('detail').textContent = json(value); el('inspector-note').textContent = 'Original recorded evidence, loaded from the archive.'; el<HTMLDialogElement>('evidence-dialog').showModal(); }).catch(error => notify(error.message));
+    return;
+  }
   inspectingState = false;
   selectedEvent = event.sequence;
+  const evidence = snapshot.events?.filter(e => e.sequence <= shownBoundary);
   const data = event.data as JsonObject;
   if (event.type === 'action' || event.type === 'proposal') {
-    const proposal = event.type === 'proposal' ? event : snapshot.events?.find(e => e.type === 'proposal' && (e.data as JsonObject).id === data.actionId);
+    const proposal = event.type === 'proposal' ? event : evidence?.find(e => e.type === 'proposal' && (e.data as JsonObject).id === data.actionId);
     const proposalData = proposal?.data as JsonObject | undefined;
-    const request = snapshot.events?.find(e => e.type === 'request' && (e.data as JsonObject).context && ((e.data as JsonObject).context as JsonObject).requestId === proposalData?.requestId);
-    const outcomes = snapshot.events?.filter(e => e.type === 'action' && (e.data as JsonObject).actionId === proposalData?.id);
+    const request = evidence?.find(e => e.type === 'request' && (e.data as JsonObject).context && ((e.data as JsonObject).context as JsonObject).requestId === proposalData?.requestId);
+    const outcomes = evidence?.filter(e => e.type === 'action' && (e.data as JsonObject).actionId === proposalData?.id);
     el('detail').textContent = json({ selected: event, originalRequest: request ?? 'Unavailable / operator intervention', proposal, outcomes });
   } else el('detail').textContent = json(event);
+  if (!el<HTMLDialogElement>('evidence-dialog').open) el<HTMLDialogElement>('evidence-dialog').showModal();
   el('inspector-note').textContent = 'Original recorded evidence. Context inclusion shows availability; it does not prove causal influence.';
 }
 function render() {
   const runId = snapshot.manifest?.runId ?? '';
   if (displayedRunId !== runId) {
-    displayedRunId = runId; selectedEvent = -1; inspectingState = false;
+    displayedRunId = runId; selectedEvent = -1; cursor.follow(); stopReplay(); renderedReport = ''; inspectingState = false;
+    el<HTMLDialogElement>('evidence-dialog').close();
+    el<HTMLDialogElement>('order-dialog').close(); orderEdit = undefined;
     el<HTMLSelectElement>('perspective').value = 'operator'; el<HTMLTextAreaElement>('edit').value = '';
     el('detail').textContent = 'No event selected.';
     el('comparison-traces').replaceChildren(); el('comparison').textContent = 'No branch comparison selected.';
@@ -97,12 +138,19 @@ function render() {
     el<HTMLSelectElement>('world-operation').replaceChildren(...operations.map(op => new Option(op.id.replace('operator.', ''), op.id)));
     editWorldOperation();
   }
-  el('mode').textContent = snapshot.mode === 'live' ? snapshot.automatic ? 'Running' : snapshot.status?.stopped ? 'Stopped' : 'At boundary' : snapshot.mode;
+  el('mode').textContent = snapshot.mode === 'live' ? snapshot.automatic ? 'Running' : snapshot.status?.stopped ? 'Stopped' : 'Live run' : snapshot.mode === 'playback' ? 'Saved run' : 'Setup';
   const status = snapshot.status;
   el('status').textContent = snapshot.failure ?? (status ? `${status.steps} steps · ${status.pendingRequests} pending decisions · ${status.activeProviders} provider calls · ${status.unresolvedActions} unresolved actions${status.paused ? ' · Dispatch paused' : ''}`
     : snapshot.mode === 'playback' ? 'Recorded playback · no providers or host tools execute.' : 'Review your sources and connection slots, then start a run.');
   const metrics = el('metrics'); metrics.replaceChildren();
   const events = snapshot.events ?? [];
+  frames = snapshot.manifest?.host.contractId === 'example.fabrication' ? shopFrames(events, snapshot.mode === 'live' ? snapshot.shop : undefined) : economyFrames(events, snapshot.mode === 'live' ? snapshot.economy : undefined);
+  const frameIndex = cursor.index(frames);
+  const frame = frames[frameIndex];
+  shownShop = isShop(frame?.report) ? frame.report : undefined;
+  shownMarket = frame && !isShop(frame.report) ? frame.report : undefined;
+  const shownReport = shownShop ?? shownMarket;
+  shownBoundary = frame?.sequence ?? events.at(-1)?.sequence ?? Infinity;
   const usage = events.reduce((sum, event) => { const values = (event.data as JsonObject).usage as JsonObject | undefined; return sum + Number(values?.inputTokens ?? 0) + Number(values?.outputTokens ?? 0); }, 0);
   for (const [value, name] of [[status?.requests ?? events.filter(e => e.type === 'request').length, 'decisions requested'], [events.filter(e => e.type === 'proposal').length, 'proposals'], [usage, 'reported tokens'], [snapshot.canCheckpoint ? 'Ready' : snapshot.mode === 'playback' ? 'Playback' : '—', 'checkpoint']] as const) {
     const metric = document.createElement('div'); metric.className = 'metric'; const strong = document.createElement('b'); strong.textContent = String(value); metric.append(strong, name); metrics.append(metric);
@@ -113,7 +161,7 @@ function render() {
   if (actors.includes(chosen)) perspective.value = chosen;
   if (inspectingState && snapshot.launch?.states[perspective.value]) el('detail').textContent = json(snapshot.launch.states[perspective.value]);
   const filter = el<HTMLSelectElement>('filter').value;
-  const shown = events.filter(e => (filter === 'all' || e.type === filter) && (perspective.value === 'operator' || actorOf(e) === perspective.value));
+  const shown = events.filter(e => e.sequence <= shownBoundary && (filter === 'all' || e.type === filter) && (perspective.value === 'operator' || actorOf(e) === perspective.value));
   if (events.length) {
     const timeline = el('timeline'); const atBottom = timeline.scrollTop + timeline.clientHeight >= timeline.scrollHeight - 40; timeline.replaceChildren();
     for (const event of shown.slice(-300)) {
@@ -135,6 +183,59 @@ function render() {
   el('world-note').textContent = snapshot.interventions?.operations.length ? `Current host revision: ${snapshot.interventions.revision}. Pause at a settled boundary. Characters learn changes through their usual observations.` : 'This host version has no world operations. New conversation and settlement runs support them; old recordings keep their original host version.';
   el<HTMLButtonElement>('world-preview').disabled = !canIntervene;
   el<HTMLButtonElement>('world-apply').disabled = !canIntervene || !previewedWorld || previewedWorld.expectedRevision !== snapshot.interventions?.revision;
+  const slider = el<HTMLInputElement>('economy-snapshot'); slider.max = String(Math.max(0, frames.length - 1)); slider.value = String(frameIndex);
+  const recapContainer = el('economy-recap'); recapContainer.hidden = !shownReport;
+  el('turn-transport').hidden = !shownReport;
+  el('market-details').hidden = !shownReport;
+  el('watch-empty').hidden = !!shownReport;
+  el('shop-orders-panel').hidden = !shownShop;
+  el('economy-csv').hidden = !!shownShop;
+  el('add-order').hidden = snapshot.mode !== 'live';
+  el<HTMLButtonElement>('add-order').disabled = !canIntervene || !cursor.following || !!shownShop?.completed || (shownShop?.tick ?? 0) >= (shownShop?.turns ?? Infinity);
+  el('shop-finish-work').hidden = !shownShop || snapshot.mode !== 'live' || !cursor.following || !(status?.unresolvedActions) || !!snapshot.busy || !!snapshot.automatic;
+  el<HTMLButtonElement>('shop-finish-work').disabled = !!status?.pendingRequests || !!status?.activeProviders;
+  el('shop-order-note').textContent = snapshot.mode === 'playback' ? 'Orders at the selected recorded turn.' : !cursor.following ? 'Return to live to add an order.' : !canIntervene ? 'Pause, then finish current work to add an order.' : 'Add an order, then advance a turn for the characters to react.';
+  el('watch-empty').textContent = snapshot.mode === 'authoring' ? 'Choose a scenario in Setup to begin.' : 'This host’s controls and recorded events are available in Diagnostics.';
+  el('economy-controls').hidden = !shownReport;
+  if (shownReport) {
+    el('scenario-title').textContent = shownShop ? 'Fabrication shop' : 'Small economy';
+    const report = shownReport;
+    slider.setAttribute('aria-valuetext', `Turn ${report.tick}`);
+    const isLive = cursor.following && snapshot.mode === 'live' && !ended();
+    el('turn-position').textContent = `Turn ${report.tick} · ${isShop(report) ? `Week ${Math.min(Math.ceil(report.turns / report.rentEvery), Math.max(1, Math.ceil(report.tick / report.rentEvery)))}` : `Day ${Math.min(report.day, report.days)}`} · ${isLive ? 'Live' : 'Replay'}`;
+    el('turn-status').textContent = snapshot.failure ?? (isLive && snapshot.busy ? `Resolving turn · ${status?.pendingRequests ?? 0} decisions pending` : snapshot.automatic ? 'Running live · Pause to read or browse earlier turns.' : !isLive ? 'Recorded turns · no model calls.' : 'Next turn asks the characters to act.');
+    el<HTMLButtonElement>('turn-prev').disabled = frameIndex === 0;
+    const next = cursor.next(frames, snapshot.mode === 'live' && !ended());
+    el<HTMLButtonElement>('turn-next').disabled = navigationBusy || (next === 'generate' && (!!snapshot.busy || !!snapshot.automatic)) || next === 'end';
+    el('turn-next').textContent = next === 'generate' ? 'Next turn' : 'Next';
+    el('turn-play').textContent = snapshot.automatic || replayTimer ? 'Pause' : isLive ? 'Play live' : 'Play replay';
+    el<HTMLButtonElement>('turn-play').disabled = navigationBusy || (!snapshot.automatic && !!snapshot.busy && isLive) || (!isLive && frames.length < 2);
+    el('economy-latest').hidden = cursor.following || snapshot.mode !== 'live' || ended();
+    const key = `${snapshot.manifest?.runId}:${frame?.sequence}:${report.tick}:${report.revision}:${isLive}:${status?.stopped}`;
+    if (key !== renderedReport) {
+      renderedReport = key;
+      const inspect = (sequence: number) => { const event = events.find(e => e.sequence === sequence); if (event) showEvent(event); };
+      const previous = frames[frameIndex - 1]?.report;
+      if (isShop(report)) {
+        renderShopRecap(recapContainer, report, shopRecap(events, report, shownBoundary, isLive), isShop(previous) ? previous : undefined, inspect);
+        renderShopOrders(el('shop-orders'), report);
+        renderShopWorld(el('economy-view'), report);
+      } else {
+        const recap = economyRecap(events, report, { previous: previous && !isShop(previous) ? previous : undefined, throughSequence: shownBoundary, live: isLive });
+        renderEconomyRecap(recapContainer, recap, report, inspect);
+        renderEconomy(el('economy-view'), report);
+      }
+    }
+  }
+  const models = Object.values(snapshot.manifest?.effectiveConfig ?? {}).map(c => `${c.model.provider}/${c.model.model}`);
+  const fixtureMarket = Object.values(snapshot.manifest?.effectiveConfig ?? {}).some(c => c.model.provider === 'fixture');
+  el('run-label').hidden = !fixtureMarket;
+  el('run-label').textContent = 'Scripted developer sample';
+  el('economy-run-kind').textContent = `${fixtureMarket ? 'Scripted developer fixture · no live-model behavior' : snapshot.mode === 'playback' ? 'Recorded model run' : 'Live model run'} · ${[...new Set(models)].join(', ')}`;
+  const failures = events.filter(e => e.type === 'model-error' || e.type === 'model-timeout').length;
+  if (shownReport) el('economy-run-kind').textContent += ` · ${events.filter(e => e.type === 'request').length} requests · ${failures} provider/output failures or timeouts`;
+  el('economy-save-status').textContent = snapshot.savedRecording ? `Saved: ${snapshot.savedRecording}. ${snapshot.saveNote ?? 'Recording is ready to open.'}` : snapshot.mode === 'playback' ? 'Verified recorded evidence. Scrub snapshots; no model calls.' : 'Run saves automatically at its configured limit. Save manually before closing the server.';
+  el<HTMLButtonElement>('economy-open-saved').disabled = !snapshot.savedRecording || snapshot.busy || !!snapshot.automatic;
   const canvas = el<HTMLCanvasElement>('spatial');
   const spatial = snapshot.host as SpatialView | undefined;
   canvas.hidden = !spatial?.world?.positions || !Array.isArray(spatial.world.obstacles);
@@ -147,7 +248,17 @@ function render() {
     ctx.fillStyle = '#9ab1c0'; ctx.font = '12px system-ui'; ctx.fillText('3D world · orthographic view · metres · Y up', 18, 25);
   }
 }
-async function refresh() { snapshot = await api<Snapshot>('state'); render(); }
+let refreshSequence = 0;
+async function refresh() {
+  const sequence = ++refreshSequence;
+  const previous = snapshot;
+  const next = await api<Snapshot>(`state?runId=${encodeURIComponent(previous.manifest?.runId ?? '')}&after=${previous.events?.length ?? 0}&view=summary`);
+  if (sequence !== refreshSequence) return;
+  const more = next.memoryEnabled && next.events?.length === 256;
+  if (next.manifest?.runId === previous.manifest?.runId && next.eventsOffset === previous.events?.length) next.events = [...(previous.events ?? []), ...(next.events ?? [])];
+  snapshot = next; render();
+  if (more) setTimeout(() => { void refresh().catch(error => notify(error.message)); }, 20);
+}
 function bind(id: string, action: () => Promise<unknown> | void) { el(id).addEventListener('click', () => { void Promise.resolve().then(action).then(refresh).catch(error => notify(error.message)); }); }
 el<HTMLSelectElement>('document').onchange = () => { if (!draft) return; draft.sources[currentPath] = el<HTMLTextAreaElement>('source').value; currentPath = el<HTMLSelectElement>('document').value; el<HTMLTextAreaElement>('source').value = draft.sources[currentPath]; };
 for (const id of ['provider', 'model', 'endpoint']) el(id).addEventListener('change', () => { try { syncSlot(); } catch { notify('Correct the connection slot JSON first.'); } });
@@ -173,6 +284,72 @@ bind('world-apply', async () => {
   try { await api('world-intervene', edit); notify('World change recorded. Advance or step to deliver observations.'); }
   finally { await refresh(); }
 });
+el<HTMLInputElement>('economy-snapshot').oninput = () => { void seekTurn(Number(el<HTMLInputElement>('economy-snapshot').value)).catch(error => notify(error.message)); };
+bind('economy-latest', () => { stopReplay(); cursor.follow(); });
+bind('turn-prev', () => seekTurn(cursor.index(frames) - 1));
+bind('turn-next', async () => {
+  const next = cursor.next(frames, snapshot.mode === 'live' && !ended());
+  if (next === 'recorded') { await seekTurn(cursor.index(frames) + 1); return; }
+  if (next !== 'generate' || navigationBusy || snapshot.busy || snapshot.automatic) return;
+  navigationBusy = true; render();
+  try { await api('step', {}); if (!snapshot.memoryEnabled) { const saved = await api<{name: string}>('save', {}); await catalog(); el<HTMLSelectElement>('recordings').value = saved.name; } }
+  finally { navigationBusy = false; }
+});
+bind('turn-play', async () => {
+  if (snapshot.automatic) { await api('pause', {}); return; }
+  if (replayTimer) { stopReplay(); return; }
+  if (cursor.following && snapshot.mode === 'live' && !ended()) {
+    if (navigationBusy || snapshot.busy) return;
+    navigationBusy = true; render(); try { await api('run', {}); } finally { navigationBusy = false; } return;
+  }
+  // Replay has no path to dispatch. Reaching its final frame always stops.
+  if (cursor.index(frames) === frames.length - 1) cursor.seek(frames, 0);
+  replayTimer = setInterval(() => {
+    const index = cursor.index(frames);
+    if (index >= frames.length - 1) { stopReplay(); render(); return; }
+    cursor.seek(frames, index + 1);
+    if (index + 1 === frames.length - 1) stopReplay();
+    render();
+  }, 1500);
+  render();
+});
+for (const button of document.querySelectorAll<HTMLButtonElement>('[data-page]')) button.onclick = () => showPage(button.dataset.page!);
+el('structured-outputs').onchange = syncSlot;
+el('close-evidence').onclick = () => el<HTMLDialogElement>('evidence-dialog').close();
+bind('shop-finish-work', async () => { await api('advance', {}); notify('Advanced the workshop one turn without asking for new decisions.'); });
+bind('add-order', () => {
+  if (!snapshot.shop || !snapshot.interventions || !snapshot.canCheckpoint || snapshot.automatic || !cursor.following) throw new Error('Pause at a settled live turn first.');
+  orderEdit = undefined;
+  const schema = structuredClone(orderSchema);
+  (schema.properties as JsonObject).recipient = { type: ['string', 'null'], enum: [null, ...Object.keys(snapshot.shop.people)], title: 'Who receives the order?' };
+  readOrderFields = schemaForm(el('order-fields'), schema, {
+    id: `order:new-${snapshot.shop.orders.length + 1}`, customer: 'New customer', quantity: 4, quality: 'standard', payment: 30,
+    deadline: Math.min(snapshot.shop.turns, snapshot.shop.tick + 16), recipient: null, brief: 'A new production request.',
+  }, () => { orderEdit = undefined; el<HTMLButtonElement>('order-send').disabled = true; el('order-preview-result').textContent = 'Preview your edited order.'; });
+  for (const option of el('order-fields').querySelectorAll<HTMLOptionElement>('select[aria-label="Who receives the order?"] option')) {
+    const recipient = JSON.parse(option.value); option.textContent = recipient === null ? 'Everyone (public)' : `${String(recipient).replace('simkin:', '').replace(/^./, c => c.toUpperCase())} only (private)`;
+  }
+  el<HTMLButtonElement>('order-send').disabled = true;
+  el('order-preview-result').textContent = 'Preview the order before sending it into the simulation.';
+  el<HTMLDialogElement>('order-dialog').showModal();
+});
+bind('order-preview', async () => {
+  if (!snapshot.interventions) return;
+  orderEdit = undefined; el<HTMLButtonElement>('order-send').disabled = true;
+  const edit = { operationId: 'operator.add_order', operationVersion: '1.0.0', expectedRevision: snapshot.interventions.revision, arguments: readOrderFields() };
+  const result = await api<InterventionPreview>('world-preview', edit);
+  el('order-preview-result').textContent = result.valid ? `Ready: ${edit.arguments.quantity} ${edit.arguments.quality} units for $${edit.arguments.payment}, due turn ${edit.arguments.deadline}. ${edit.arguments.recipient ? `Private lead for ${edit.arguments.recipient}.` : 'Visible to everyone.'}` : result.reason ?? 'Order is invalid.';
+  if (result.valid) { orderEdit = edit; el<HTMLButtonElement>('order-send').disabled = false; }
+});
+bind('order-send', async () => {
+  if (!orderEdit) throw new Error('Preview the order first.');
+  const edit = orderEdit; orderEdit = undefined; el<HTMLButtonElement>('order-send').disabled = true;
+  await api('world-intervene', edit); await api('save', {});
+  el<HTMLDialogElement>('order-dialog').close(); notify('Customer order added and saved. Advance a turn for the characters to react.');
+});
+el('order-close').onclick = () => el<HTMLDialogElement>('order-dialog').close();
+bind('economy-csv', async () => { if (shownMarket) downloadEconomy(snapshot.memoryEnabled ? await api<EconomyReport>('economy-report', { tick: shownMarket.tick }) : shownMarket); });
+bind('economy-open-saved', async () => { if (snapshot.savedRecording) { await api('open', { name: snapshot.savedRecording }); await catalog(); showPage('watch'); } });
 bind('load-template', async () => setDraft(await api<Draft>('template', { name: el<HTMLSelectElement>('template').value })));
 bind('load-fields', async () => {
   const source = el<HTMLTextAreaElement>('source').value; const path = currentPath;
@@ -189,11 +366,14 @@ bind('apply-fields', async () => {
   el<HTMLTextAreaElement>('source').value = result.source; draft!.sources[currentPath] = result.source; form.source = result.source;
   notify('Fields validated and applied to the authoritative source. Validate the full scenario before starting.');
 });
-bind('validate', async () => { const launch = await api<PreparedLaunch>('validate', captureDraft()); el('detail').textContent = json({ effectiveConfig: launch.effectiveConfig, configurationSources: launch.configurationSources, states: launch.states }); notify('Valid. Effective configuration and starting states are in the inspector.'); });
-bind('start', async () => { await api('start', captureDraft()); selectedEvent = -1; notify('Run created. Step once or run to the configured limit.'); });
-for (const command of ['run', 'pause', 'step', 'advance', 'stop', 'branch']) bind(command, async () => { await api(command, {}); if (command === 'branch') notify('Fresh continuation created. Parent checkpoint remains unchanged.'); });
+bind('validate', async () => { const launch = await api<PreparedLaunch>('validate', captureDraft()); el('detail').textContent = json({ effectiveConfig: launch.effectiveConfig, configurationSources: launch.configurationSources, states: launch.states }); el('inspector-note').textContent = 'Validated configuration and starting character states.'; el<HTMLDialogElement>('evidence-dialog').showModal(); });
+bind('start', async () => { await api('start', captureDraft()); selectedEvent = -1; showPage('watch'); notify('Run created. Next turn asks your characters to act.'); });
+for (const command of ['run', 'pause', 'step', 'advance', 'stop', 'branch']) bind(command, async () => {
+  if (command === 'advance') await api('pause', {});
+  await api(command, {}); if (command === 'branch') notify('Fresh continuation created. Parent checkpoint remains unchanged.');
+});
 bind('save', async () => { const result = await api<{ name: string }>('save', {}); notify(`Saved ${result.name}`); await catalog(); el<HTMLSelectElement>('recordings').value = result.name; });
-bind('open', () => api('open', { name: el<HTMLSelectElement>('recordings').value }));
+bind('open', async () => { await api('open', { name: el<HTMLSelectElement>('recordings').value }); showPage('watch'); });
 bind('intervene', () => api('intervene', { actor: el<HTMLSelectElement>('perspective').value, edit: JSON.parse(el<HTMLTextAreaElement>('edit').value) }));
 bind('compare', async () => {
   const runId = snapshot.manifest?.runId;
@@ -216,7 +396,7 @@ bind('compare', async () => {
 bind('export', async () => download('simkind-playback.json', await api('export', { redact: false })));
 bind('redact', async () => download('simkind-metadata.json', await api('export', { redact: true })));
 bind('download-draft', () => { const value = captureDraft(); download('simkind-sources.json', { ...value, slots: Object.fromEntries(Object.entries(value.slots).map(([slot, config]) => [slot, { provider: config.provider, model: config.model }])) }); });
-async function init() { await catalog(); setDraft(await api<Draft>('template', { name: el<HTMLSelectElement>('template').value })); await refresh(); setInterval(() => void refresh().catch(() => {}), 1000); }
+async function init() { await catalog(); await refresh(); if (snapshot.shop) el<HTMLSelectElement>('template').value = 'fabrication-shop.json'; else if (snapshot.economy) el<HTMLSelectElement>('template').value = 'small-economy.json'; setDraft(await api<Draft>('template', { name: el<HTMLSelectElement>('template').value })); showPage(snapshot.mode === 'authoring' ? 'setup' : 'watch'); render(); setInterval(() => void refresh().catch(() => {}), 1000); }
 void init().catch(error => notify(error.message));
 
 for (const kind of ['playback', 'draft'] as const) el<HTMLInputElement>(`import-${kind}`).onchange = async event => {
@@ -228,3 +408,5 @@ for (const kind of ['playback', 'draft'] as const) el<HTMLInputElement>(`import-
     else { if (!value.sources || !value.scenarioPath || !value.configPath || !value.slots) throw new Error('Invalid source bundle.'); setDraft(value); notify('Sources loaded. Review connection slots and validate before starting.'); }
   } catch (error) { notify((error as Error).message); }
 };
+
+bind('inspect-memory', async () => { inspectingState = false; const actor = el<HTMLSelectElement>('perspective').value; const query = el<HTMLInputElement>('memory-query').value.trim(); const value = await api('memory', { actor, query: query ? { query } : {} }); el('detail').textContent = json(value); el('inspector-note').textContent = 'Current memory at this run boundary. Interpretations remain distinct from original evidence.'; el<HTMLDialogElement>('evidence-dialog').showModal(); });

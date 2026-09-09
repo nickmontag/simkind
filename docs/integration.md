@@ -70,3 +70,31 @@ conversation behavior without becoming Simkind dependencies.
 Persist `DecisionRecord` alongside the world. Store the originating request
 snapshot when the decision came from a model. This makes failures inspectable
 and lets deterministic engine replay consume the exact same inputs.
+
+### Constraints specific to the current decision
+
+A host may implement `toolConstraints(instanceId)` and return a map from tool ID to
+a locally resolvable JSON Schema object. The runner intersects each constraint with
+the catalog's input schema (`allOf`) and freezes it in the original request. This
+can express visible counterparties, valid options, available offer IDs, or deadline
+ranges. Constraints cannot broaden catalog permissions or expose operator/private
+information; construct them from that actor's permitted perspective. Normal schema
+validation uses the frozen intersection, followed by the host's current-state
+admission checks. An offer can still close while a decision is pending.
+
+The conversation example constrains votes to its current options. Economy 1.1
+constrains offer deadlines and IDs, and adds optional `giveToolMinUses` and
+`wantToolMinUses` to its own contract. These domain attributes do not appear in core.
+Hosts in other domains can define their own quality, quantity, identity, recipient,
+or timing requirements using the same interface. A spoken promise does not acquire
+an enforceable attribute unless the resulting contract actually encodes it.
+
+## Portable simulation perception
+
+For `CharacterHost` integrations, implement `perceive(actor)` to separate current
+authorized state from new witnessed events. Use `PerceptionJournal` for stable
+identity, exact dialogue, audiences, and checkpointed delivery cursors. Publish
+participant receipts after committing effects; leave beliefs and social readings
+to character interpretation. Legacy `observe(actor)` remains supported. See
+[Building simulations](building-simulations.md) for the authoring contract and
+[Durable runs](durable-runs.md) for turn-based execution and recovery.

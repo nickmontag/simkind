@@ -5,7 +5,7 @@
   "description": "TypeScript toolkit for LLM-driven simulated characters: memory, commitments, asynchronous decisions, and deterministic replay.",
   "type": "module",
   "engines": {
-    "node": ">=22.12.0"
+    "node": ">=22.16.0"
   },
   "exports": {
     ".": {
@@ -59,7 +59,14 @@
     "docs/playground.md",
     "docs/providers-and-spatial.md",
     "docs/interoperability.md",
-    "docs/release-alpha.md"
+    "docs/release-alpha.md",
+    "docs/economy.md",
+    "docs/long-run-memory.md",
+    "docs/long-run-evaluation.md",
+    "docs/fabrication-shop.md",
+    "docs/building-simulations.md",
+    "docs/durable-runs.md",
+    "docs/behavioral-evaluation.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -85,7 +92,15 @@
     "scenario:smoke": "npm run build --silent && tsx examples/portable/live-smoke.ts",
     "check:consumer": "node scripts/check-consumer.mjs",
     "check:runs": "npm run build --silent && tsx scripts/generate-run-fixtures.ts --check",
-    "generate:runs": "npm run build --silent && tsx scripts/generate-run-fixtures.ts"
+    "generate:runs": "npm run build --silent && tsx scripts/generate-run-fixtures.ts",
+    "economy": "npm run scenario -- --scenario small-economy.json --config config-economy-memory.json",
+    "economy:report": "npm run build --silent && tsx examples/economy/report-cli.ts",
+    "economy:fixture": "npm run build --silent && tsx examples/economy/fixture-cli.ts",
+    "check:long-runs": "npm run build --silent && tsx scripts/check-long-runs.ts",
+    "evaluate:memory": "npm run build --silent && tsx scripts/evaluate-long-memory.ts",
+    "fabrication": "npm run scenario -- --scenario fabrication-shop.json --config config-fabrication.json",
+    "scenario:supervise": "npm run build --silent && tsx scripts/supervise-scenario.ts",
+    "evaluate:scenarios": "npm run build --silent && tsx scripts/evaluate-scenarios.ts"
   },
   "devDependencies": {
     "@types/node": "^26.1.1",

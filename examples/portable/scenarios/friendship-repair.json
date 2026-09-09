@@ -1,0 +1,79 @@
+{
+  "specVersion": "0.2.0-draft.2",
+  "kind": "scenario",
+  "id": "scenario:friendship-repair",
+  "resources": {
+    "character:aya": {
+      "path": "characters/friendship-repair-aya.simkind.json"
+    },
+    "character:mira": {
+      "path": "characters/friendship-repair-mira.simkind.json"
+    },
+    "character:sol": {
+      "path": "characters/friendship-repair-sol.simkind.json"
+    },
+    "catalog:conversation": {
+      "path": "tools/conversation.json"
+    }
+  },
+  "host": {
+    "contractId": "example.conversation",
+    "version": "1.0.0"
+  },
+  "cast": [
+    {
+      "instanceId": "simkin:aya",
+      "characterRef": "character:aya",
+      "initialState": {
+        "intentions": [
+          {
+            "id": "intention:0",
+            "description": "Protect my autonomy while deciding whether this friendship is worth repairing."
+          }
+        ]
+      }
+    },
+    {
+      "instanceId": "simkin:mira",
+      "characterRef": "character:mira",
+      "initialState": {
+        "intentions": [
+          {
+            "id": "intention:0",
+            "description": "Keep confidences while saying honestly what I need from both friends."
+          }
+        ]
+      }
+    },
+    {
+      "instanceId": "simkin:sol",
+      "characterRef": "character:sol",
+      "initialState": {
+        "intentions": [
+          {
+            "id": "intention:0",
+            "description": "Find out whether the band still wants a future together; avoid carrying it alone."
+          }
+        ]
+      }
+    }
+  ],
+  "toolCatalogRef": "catalog:conversation",
+  "initialConditions": {
+    "sharedContext": "Three old friends share a rehearsal studio. Rehearsals have become tense. They meet after Sol booked a paid performance without asking them. Decide how to handle the next month. You may disclose, conceal, apologize, disagree, reconcile, or leave. Votes record individual preferences only; speech does not establish another person's consent. No preferred ending.",
+    "options": [
+      "continue",
+      "pause",
+      "separate"
+    ]
+  },
+  "recommendations": {
+    "features": {
+      "simkind.memory-retrieval": {
+        "config": {
+          "maxItems": 6
+        }
+      }
+    }
+  }
+}

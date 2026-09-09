@@ -6,7 +6,8 @@ reference; current guides take precedence for supported commands and capabilitie
 
 Status: draft design. Audience: contributors designing future releases.
 
-This is a proposed validation plan with implemented M1/M2 evidence. The
+This is the broader validation plan; the release checklist below tracks the local
+M1–M7 implementation. The current release report supersedes dated evidence counts. The
 [draft.1 character fixtures](../../fixtures/format/README.md),
 [six draft.2 document fixtures](../../fixtures/format/draft.2/README.md), and
 [host fixture scope](../../fixtures/host/README.md) identify current evidence and

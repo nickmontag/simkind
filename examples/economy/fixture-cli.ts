@@ -1,0 +1,10 @@
+import { resolve } from 'node:path';
+import { PlaygroundSession } from '../../playground/session.js';
+import { economyFixtureConnection } from './fixture.js';
+const output = resolve('.internal/playground-runs');
+const session = new PlaygroundSession(resolve('examples/portable/scenarios'), output, {}, economyFixtureConnection);
+session.start(await session.template('small-economy.json'));
+for (let round = 0; round < 49; round++) await session.step();
+const state = session.state();
+if (!('savedRecording' in state) || !state.savedRecording) throw new Error('Fixture did not save.');
+console.log(JSON.stringify({ fixture: 'Scripted contract exercise; not emergent or live-model evidence.', saved: resolve(output, state.savedRecording), report: state.economy }, null, 2));

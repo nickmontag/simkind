@@ -1,10 +1,13 @@
-import { continuityProfile, reviseTool, reviseState, retainObservation, selectContinuityMemories, type StateEdit } from './continuity.js';
+import { continuityProfile, reviseTool, decisionReviseTool, reviseState, retainObservation, selectContinuityMemories, type StateEdit } from './continuity.js';
+import { CharacterMemory, contextProfile, compactTool, recallTool, ContextCapacityError, type ContextSettings, type MemoryCutoff, type ConsolidationBatch } from './long-memory.js';
+import { MemoryRunnerStorage, ScopedRunnerStorage, type RunnerStorage } from './storage.js';
 import { validateCheckpoint, ledgerFromEvents, type RunnerCheckpoint } from './checkpoint.js';
 import { ModelRuntime, type ModelRequest, type ModelCompletion } from '../model-runtime.js';
 import { compileDataSchema, validateRecord, validateTime, type ActionEvent, type ActionProposal,
   canonicalJson, type FormatResult, type JsonValue, type RunBundle, type RunEvent } from '../format/index.js';
 import { readMappedCharacter, object, checkJsonValue } from '../format/character.js';
 import { ActionLedger } from './actions.js';
+import { ProviderFailure } from './provider-error.js';
 import { memoryRetrievalProfile, prepareLaunch } from './launch.js';
 import type { CharacterHost, DecisionContext, HostIntervention, HostRegistration, ModelConnection, PreparedLaunch, ProviderResult, ResolvedBundle } from './contracts.js';
 
@@ -13,9 +16,14 @@ interface Request extends ModelRequest {
   context: DecisionContext;
   revision: number;
   deadline: number;
+  opportunityDeadline?: number;
+  startedAt?: number;
   controller: AbortController;
   finishedAt?: number;
+  memory?: { base: DecisionContext; cutoff: MemoryCutoff; turn: number; calls: number; batch?: ConsolidationBatch };
 }
+
+export interface RunnerOptions { storage?: RunnerStorage; recordTimings?: boolean }
 
 function json(value: unknown): JsonValue { return JSON.parse(JSON.stringify(value)) as JsonValue; }
 
@@ -26,12 +34,19 @@ export class CharacterRunner {
   private parent?: RunBundle['parent'];
   private readonly runtime: ModelRuntime<Request, ProviderResult>;
   private readonly pending = new Map<string, Request>();
-  private readonly history: RunEvent[] = [];
-  private readonly toolValidators = new Map<string, ReturnType<typeof compileDataSchema>>();
+  private readonly storage: RunnerStorage;
+  private readonly memories = new Map<string, CharacterMemory>();
+  private readonly contextFailures = new Map<string, string>();
+  private get eventStream() { return `events:${this.launch.runId}`; }
+  private get eventCount() { return this.storage.count(this.eventStream); }
+  private readonly operatorObservationIds = new Map<string, string>();
+  private readonly inputValidators = new Map<string, ReturnType<typeof compileDataSchema>>();
   private readonly outputValidators = new Map<string, ReturnType<typeof compileDataSchema>>();
   private requestCount = 0;
   private requestSequence = 0;
   private steps = 0;
+  private memoryTurnOffset = 0;
+  private get memoryTurn() { return this.steps + this.memoryTurnOffset; }
   private activeProviders = 0;
   private paused = false;
   private stopped = false;
@@ -41,22 +56,35 @@ export class CharacterRunner {
   private constructor(
     private readonly launch: PreparedLaunch,
     private readonly registration: HostRegistration,
-    connections: Readonly<Record<string, ModelConnection>>,
+    private readonly connections: Readonly<Record<string, ModelConnection>>,
     checkpoint?: RunnerCheckpoint,
+    private readonly options: RunnerOptions = {},
   ) {
-    this.host = checkpoint ? registration.restore!(structuredClone(launch), structuredClone(checkpoint.hostState)) : registration.create(structuredClone(launch));
-    this.ledger = checkpoint ? ledgerFromEvents(launch.runId, registration.descriptor.clocks, checkpoint.events) : new ActionLedger(launch.runId, registration.descriptor.clocks);
+    this.storage = options.storage ?? new MemoryRunnerStorage();
+    const runtime = Object.values(launch.effectiveConfig).some(config => config.features[contextProfile.id]?.enabled) ? { storage: this.storage } : undefined;
+    this.host = checkpoint ? registration.restore!(structuredClone(launch), structuredClone(checkpoint.hostState), runtime) : registration.create(structuredClone(launch), runtime);
+    const ledgerStorage = new ScopedRunnerStorage(this.storage, `ledger:${launch.runId}:`);
+    this.ledger = checkpoint?.version === 'simkind.checkpoint/1' ? ledgerFromEvents(launch.runId, registration.descriptor.clocks, checkpoint.events, ledgerStorage) : new ActionLedger(launch.runId, registration.descriptor.clocks, ledgerStorage);
     if (checkpoint) {
-      this.history.push(...structuredClone(checkpoint.events));
+      for (const event of checkpoint.events) this.storage.append(this.eventStream, { id: event.id, turn: 0, text: '', value: event });
+      for (const event of checkpoint.events) if (event.type === 'observation') {
+        const observation = event.data as unknown as import('../format/index.js').Observation;
+        if (!Object.hasOwn(launch.states, observation.recipient)) this.operatorObservationIds.set(observation.id, canonicalJson(observation));
+      }
+      this.memoryTurnOffset = checkpoint.scheduler.memoryTurnOffset ?? 0;
       this.steps = checkpoint.scheduler.steps; this.requestCount = checkpoint.scheduler.requests; this.requestSequence = checkpoint.scheduler.requestSequence;
       this.nextActor = checkpoint.scheduler.nextActor; this.paused = checkpoint.scheduler.paused;
       this.parent = structuredClone(checkpoint.parent);
     }
+    for (const [actor, effective] of Object.entries(launch.effectiveConfig)) if (effective.features[contextProfile.id]?.enabled) {
+      const memory = new CharacterMemory(this.storage, { ...contextProfile.defaults.config, ...effective.features[contextProfile.id].config } as ContextSettings);
+      memory.initialise(launch.states[actor]); this.memories.set(actor, memory);
+    }
     for (const tool of registration.descriptor.toolCatalog.tools) {
-      this.toolValidators.set(tool.id, compileDataSchema(tool.inputSchema));
+      this.validateInput(tool.inputSchema);
       if (tool.outputSchema !== undefined) this.outputValidators.set(tool.id, compileDataSchema(tool.outputSchema));
     }
-    this.toolValidators.set(reviseTool.id, compileDataSchema(reviseTool.inputSchema));
+
     this.runtime = new ModelRuntime(async (request) => {
       this.activeProviders++;
       try {
@@ -68,25 +96,37 @@ export class CharacterRunner {
     this.assertTime();
   }
 
-  static create(bundle: ResolvedBundle, registration: HostRegistration, connections: Readonly<Record<string, ModelConnection>>, runId: string): FormatResult<CharacterRunner> {
+  static create(bundle: ResolvedBundle, registration: HostRegistration, connections: Readonly<Record<string, ModelConnection>>, runId: string, options: RunnerOptions = {}): FormatResult<CharacterRunner> {
     const snapshot = { ...registration, descriptor: structuredClone(registration.descriptor) };
     const launch = prepareLaunch(bundle, snapshot, connections, runId);
-    return launch.ok ? { ok: true, value: new CharacterRunner(launch.value, snapshot, { ...connections }) } : launch;
+    return launch.ok ? { ok: true, value: new CharacterRunner(launch.value, snapshot, { ...connections }, undefined, options) } : launch;
   }
 
   /** Exact compatible restore; supplying a new run ID creates a fresh continuation. */
-  static restore(checkpoint: RunnerCheckpoint, registration: HostRegistration, connections: Readonly<Record<string, ModelConnection>>, branchRunId?: string): CharacterRunner {
+  static restore(checkpoint: RunnerCheckpoint, registration: HostRegistration, connections: Readonly<Record<string, ModelConnection>>, branchRunId?: string, options: RunnerOptions = {}): CharacterRunner {
     validateCheckpoint(checkpoint);
     const descriptor = registration.descriptor;
     if (!descriptor.capabilities.restore || !registration.restore || branchRunId && !descriptor.capabilities.branch) throw new Error('Host does not support this restore mode.');
     if (canonicalJson(checkpoint.host) !== canonicalJson({ contractId: descriptor.contractId, version: descriptor.version, implementationVersion: descriptor.implementationVersion })) throw new Error('Checkpoint host version mismatch.');
     const launch = prepareLaunch(checkpoint.launch.bundle, registration, connections, branchRunId ?? checkpoint.launch.runId);
     if (!launch.ok) throw new Error(JSON.stringify(launch.diagnostics));
+    if (checkpoint.modelCapabilities) for (const [slot, capabilities] of Object.entries(checkpoint.modelCapabilities)) {
+      if (canonicalJson(connections[slot]?.capabilities) !== canonicalJson(capabilities)) throw new Error('Checkpoint model capabilities mismatch.');
+    }
     if (canonicalJson(launch.value.effectiveConfig) !== canonicalJson(checkpoint.launch.effectiveConfig)
       || canonicalJson(launch.value.scenario) !== canonicalJson(checkpoint.launch.scenario)
       || canonicalJson(launch.value.config) !== canonicalJson(checkpoint.launch.config)
       || canonicalJson(launch.value.characters) !== canonicalJson(checkpoint.launch.characters)) throw new Error('Checkpoint launch configuration mismatch.');
-    ledgerFromEvents(checkpoint.launch.runId, descriptor.clocks, checkpoint.events);
+    if (checkpoint.version === 'simkind.checkpoint/1') ledgerFromEvents(checkpoint.launch.runId, descriptor.clocks, checkpoint.events);
+    else {
+      const storage = options.storage;
+      if (!storage || canonicalJson(storage.get('checkpoints', checkpoint.id)) !== canonicalJson(checkpoint)
+        || storage.count(`events:${checkpoint.launch.runId}`) !== checkpoint.archive!.eventCount) throw new Error('Supply the exact frozen checkpoint archive.');
+      for (const [actor, expected] of Object.entries(checkpoint.archive!.actors)) {
+        if (storage.count(`evidence:${actor}`) !== expected.evidence || storage.count(`episodes:${actor}`) !== expected.episodes
+          || storage.get<{ version: number }>('memory-head', actor)?.version !== expected.version) throw new Error('Checkpoint memory archive mismatch.');
+      }
+    }
     const copy = structuredClone(checkpoint);
     launch.value.states = structuredClone(checkpoint.launch.states);
     if (canonicalJson(Object.keys(launch.value.states).sort()) !== canonicalJson(launch.value.scenario.cast.map(m => m.instanceId).sort())) throw new Error('Checkpoint cast mismatch.');
@@ -96,22 +136,34 @@ export class CharacterRunner {
     if (branchRunId) {
       if (branchRunId === checkpoint.launch.runId) throw new Error('A branch requires a new run ID.');
       copy.events = [];
+      copy.scheduler.memoryTurnOffset = (checkpoint.scheduler.memoryTurnOffset ?? 0) + checkpoint.scheduler.steps;
       copy.scheduler.steps = 0; copy.scheduler.requests = 0; copy.scheduler.paused = true;
       copy.parent = { runId: checkpoint.launch.runId, checkpointId: checkpoint.id, interventionRefs: [] };
     }
     copy.launch = launch.value;
-    return new CharacterRunner(launch.value, { ...registration, descriptor: structuredClone(descriptor) }, { ...connections }, copy);
+    return new CharacterRunner(launch.value, { ...registration, descriptor: structuredClone(descriptor) }, { ...connections }, copy, options);
   }
 
-  checkpoint(id = `checkpoint:${this.history.length}`): RunnerCheckpoint {
+  checkpoint(id?: string): RunnerCheckpoint {
     this.poll();
+    this.recordOperatorObservations();
     if (!this.registration.descriptor.capabilities.restore || !this.registration.restore || !this.host.checkpoint) throw new Error('Host does not support checkpoints.');
     if (this.stopped || this.pending.size || this.activeProviders || this.ledger.unresolved().length) throw new Error('Checkpoint requires a settled, non-stopped boundary.');
-    const checkpoint: RunnerCheckpoint = { version: 'simkind.checkpoint/1', id, host: this.manifest().host,
-      launch: structuredClone(this.launch), hostState: structuredClone(this.host.checkpoint()), events: this.events(),
-      scheduler: { steps: this.steps, requests: this.requestCount, requestSequence: this.requestSequence, nextActor: this.nextActor, paused: this.paused },
+    if (id === undefined) {
+      if (this.memories.size) {
+        const sequence = (this.storage.get<number>('runner', 'checkpoint-sequence') ?? 0) + 1;
+        this.storage.set('runner', 'checkpoint-sequence', sequence);
+        id = `checkpoint:${this.eventCount}:${sequence}`;
+      } else id = `checkpoint:${this.eventCount}`;
+    } else if (this.memories.size && this.storage.get('checkpoints', id)) throw new Error('Checkpoint IDs are immutable; choose a new ID.');
+    const checkpoint: RunnerCheckpoint = { version: this.memories.size ? 'simkind.checkpoint/2' : 'simkind.checkpoint/1', id, host: this.manifest().host,
+      launch: structuredClone(this.launch), hostState: structuredClone(this.host.checkpoint()), events: this.memories.size ? [] : this.events(),
+      ...(this.memories.size ? { archive: { eventCount: this.eventCount, ...(this.storage.revision ? { revision: this.storage.revision() } : {}), actors: Object.fromEntries([...this.memories].map(([actor, manager]) => { const cutoff = manager.cutoff(actor); return [actor, { evidence: cutoff.evidence, episodes: cutoff.episodes, version: cutoff.head.version }]; })) } } : {}),
+      ...(this.memories.size ? { modelCapabilities: Object.fromEntries(Object.entries(this.connections).map(([slot, connection]) => [slot, { text: connection.capabilities.text, json: connection.capabilities.json, ...(connection.capabilities.jsonSchema !== undefined ? { jsonSchema: connection.capabilities.jsonSchema } : {}) }])) } : {}),
+      scheduler: { steps: this.steps, requests: this.requestCount, requestSequence: this.requestSequence, nextActor: this.nextActor, paused: this.paused, ...(this.memories.size ? { memoryTurnOffset: this.memoryTurnOffset } : {}) },
       ...(this.parent ? { parent: structuredClone(this.parent) } : {}) };
     validateCheckpoint(checkpoint);
+    if (this.memories.size) { this.storage.set('checkpoints', id, checkpoint); this.storage.set('runner', 'latestCheckpoint', id); }
     return checkpoint;
   }
 
@@ -119,7 +171,7 @@ export class CharacterRunner {
   intervene(actor: string, edit: StateEdit, operator: string): void {
     if (!operator.trim() || !Object.hasOwn(this.launch.states, actor)) throw new Error('Name an operator and an existing character.');
     if (this.stopped || this.pending.size || this.activeProviders || this.ledger.unresolved().length) throw new Error('Intervention requires a settled boundary.');
-    const id = `intervention:${this.history.length}`;
+    const id = `intervention:${this.eventCount}`;
     const proposal: ActionProposal = { id, runId: this.launch.runId, actor, requestId: id, toolId: reviseTool.id,
       toolVersion: reviseTool.version, observedRevision: this.host.revision(), arguments: json(edit) as ActionProposal['arguments'] };
     this.ledger.propose(proposal); this.record('proposal', proposal);
@@ -153,6 +205,7 @@ export class CharacterRunner {
     this.requestSequence++; // Preserve uniqueness across restored host command logs and branches.
     this.ledger.propose(proposal); this.record('proposal', proposal);
     this.receive(this.host.intervene!(structuredClone(proposal)));
+    this.recordOperatorObservations();
     if (this.parent) this.parent.interventionRefs.push(proposal.id);
     const outcome = this.ledger.get(proposal.id)!;
     if (outcome.status === 'rejected') throw new Error('World intervention rejected; inspect the recorded reason.');
@@ -161,16 +214,24 @@ export class CharacterRunner {
 
   private applyStateEdit(proposal: ActionProposal, edit: StateEdit, visible?: string[], operator?: string): boolean {
     let next;
-    try { next = reviseState(this.launch.states[proposal.actor], edit, this.launch.runId, `interpretation:${this.history.length}`, visible); }
+    const manager = this.memories.get(proposal.actor);
+    const state = this.launch.states[proposal.actor];
+    const supplied = manager ? { ...state, context: { ...state.context, memories: manager.evidenceById(proposal.actor, visible ?? [...(edit.evidence ?? []), ...(edit.supersedes ?? [])]) } } : state;
+    try { next = reviseState(supplied, edit, this.launch.runId, `interpretation:${this.eventCount}`, visible); }
     catch (error) {
-      this.receive([{ id: `state-rejected:${this.history.length}`, runId: this.launch.runId, actor: proposal.actor, actionId: proposal.id,
+      this.receive([{ id: `state-rejected:${this.eventCount}`, runId: this.launch.runId, actor: proposal.actor, actionId: proposal.id,
         status: 'rejected', revision: this.host.revision(), time: this.host.time(), effectRefs: [], reason: (error as Error).message }]);
       return false;
     }
-    this.receive([{ id: `state-accepted:${this.history.length}`, runId: this.launch.runId, actor: proposal.actor, actionId: proposal.id,
-      status: 'accepted', revision: this.host.revision(), time: this.host.time(), effectRefs: [] }, { id: `state-applied:${this.history.length}`, runId: this.launch.runId, actor: proposal.actor, actionId: proposal.id,
+    const interpretation = manager && next.context.memories?.find(memory => memory.id === `interpretation:${this.eventCount}`);
+    if (manager) {
+      if (interpretation) manager.retain(proposal.actor, this.memoryTurn, interpretation);
+      next.context.memories = [];
+    }
+    this.receive([{ id: `state-accepted:${this.eventCount}`, runId: this.launch.runId, actor: proposal.actor, actionId: proposal.id,
+      status: 'accepted', revision: this.host.revision(), time: this.host.time(), effectRefs: [] }, { id: `state-applied:${this.eventCount}`, runId: this.launch.runId, actor: proposal.actor, actionId: proposal.id,
       status: 'succeeded', revision: this.host.revision(), time: this.host.time(), effectRefs: [],
-      result: json({ state: next, authority: operator ? 'operator' : 'character-self-report', ...(operator ? { operator } : {}) }) }]);
+      result: json({ ...(manager ? { revision: next.revision, intentions: next.context.intentions, interpretation } : { state: next }), authority: operator ? 'operator' : 'character-self-report', ...(operator ? { operator } : {}) }) }]);
     this.launch.states[proposal.actor] = next;
     return true;
   }
@@ -179,20 +240,82 @@ export class CharacterRunner {
     if (validateTime(this.host.time(), this.registration.descriptor.clocks).length || !Number.isSafeInteger(this.host.revision()) || this.host.revision() < 0) throw new Error('Host returned an invalid clock or revision.');
   }
 
-  private record(type: RunEvent['type'], data: unknown): void {
+  private record(type: RunEvent['type'], data: unknown, retain = true): void {
     this.assertTime();
-    const sequence = this.history.length;
-    this.history.push({ id: `event:${sequence}`, runId: this.launch.runId, sequence, time: structuredClone(this.host.time()), type, data: json(data) });
+    const sequence = this.eventCount;
+    const event: RunEvent = { id: `event:${sequence}`, runId: this.launch.runId, sequence, time: structuredClone(this.host.time()), type, data: json(data) };
+    this.storage.append(this.eventStream, { id: event.id, turn: this.memoryTurn, text: '', value: event });
+    if (type === 'request') this.storage.set(`request-index:${this.launch.runId}`, String((event.data as { context: { requestId: string } }).context.requestId), sequence);
+    if (type === 'proposal') this.storage.set(`proposal-index:${this.launch.runId}`, String((event.data as { id: string }).id), sequence);
+    if (type === 'observation' || type === 'proposal' || type === 'action') {
+      const payload = event.data as Record<string, JsonValue>;
+      const actor = String(type === 'observation' ? payload.recipient : payload.actor), memory = this.memories.get(actor);
+      if (memory) {
+        if (type === 'observation') {
+          const key = `${this.launch.runId}:${String(payload.id)}`;
+          const prior = this.storage.get<string>(`observed:${actor}`, key), content = canonicalJson(payload);
+          if (prior !== undefined) { if (prior !== content) throw new Error('Conflicting observation redelivery.'); return; }
+          this.storage.set(`observed:${actor}`, key, content);
+          this.launch.states[actor].revision++;
+        }
+        if (!retain) return;
+        let id = `experience:${this.storage.count(`evidence:${actor}`)}`;
+        while (this.storage.entry(`evidence:${actor}`, id)) id += ':next';
+        memory.retain(actor, this.memoryTurn, { id, text: canonicalJson({ type, ...payload, ...(type === 'action' ? { action: this.ledger.get(String(payload.actionId), false)?.proposal } : {}) }),
+          source: { kind: type === 'observation' ? 'observation' : 'report', origin: this.launch.runId },
+          eventRefs: [{ id: String(payload.id), origin: this.launch.runId, resolution: 'recorded' }] });
+      }
+    }
+  }
+
+  private recordOperatorObservations(): void {
+    for (const observation of this.host.operatorObservations?.() ?? []) {
+      if (validateRecord('Observation', observation).length || observation.runId !== this.launch.runId || Object.hasOwn(this.launch.states, observation.recipient)
+        || validateTime(observation.capturedAt, this.registration.descriptor.clocks).length || validateTime(observation.deliveredAt, this.registration.descriptor.clocks).length) throw new Error('Invalid operator-only observation.');
+      const content = canonicalJson(observation);
+      const previous = this.operatorObservationIds.get(observation.id);
+      if (previous !== undefined) { if (previous !== content) throw new Error('Conflicting operator observation.'); continue; }
+      this.operatorObservationIds.set(observation.id, content); this.record('observation', observation);
+    }
   }
 
   private receive(events: readonly ActionEvent[]): void {
     for (const event of events) {
-      const action = this.ledger.get(event.actionId);
+      const action = this.ledger.get(event.actionId, false);
       const tool = action && this.registration.descriptor.toolCatalog.tools.find((candidate) => candidate.id === action.proposal.toolId);
       if ((event.status === 'running' || event.status === 'unknown') && tool && !tool.lifecycle.asynchronous) throw new Error('Host emitted an asynchronous status for an immediate tool.');
       if (event.status === 'succeeded' && action && this.outputValidators.get(action.proposal.toolId)?.(event.result).length) throw new Error('Host result violates the tool output schema.');
     }
     for (const event of this.ledger.receive(events)) this.record('action', event);
+  }
+
+  private continueRequest(request: Request, context: DecisionContext, memory: NonNullable<Request['memory']>): void {
+    const manager = this.memories.get(request.actor)!;
+    this.bindTools(context);
+    if (JSON.stringify(context).length > manager.settings.maxContextChars) { this.contextFailures.set(request.actor, 'Protected character context exceeds its configured capacity.'); return; }
+    const deadline = request.context.purpose === 'consolidation' && context.purpose !== 'consolidation' && (manager.settings.maintenanceTimeoutMs ?? 0) > 0
+      ? Math.min(request.opportunityDeadline!, Date.now() + this.launch.config.limits.requestTimeoutMs) : request.deadline;
+    if (memory.calls >= manager.settings.maxInternalCalls || this.requestCount >= this.launch.config.limits.maxRequests
+      || Date.now() >= deadline) {
+      this.contextFailures.set(request.actor, 'Internal call or opportunity budget exhausted.');
+      return;
+    }
+    const id = `request:${++this.requestSequence}`;
+    context.requestId = id;
+    this.requestCount++;
+    const next: Request = { ...request, id, context, deadline, startedAt: Date.now(), finishedAt: undefined, memory: { ...memory, calls: memory.calls + 1 }, controller: new AbortController() };
+    this.pending.set(id, next);
+    this.record('request', { context, observedRevision: next.revision, opportunityTurn: memory.turn, ...(this.options.recordTimings ? { deadline: next.deadline, opportunityDeadline: next.opportunityDeadline } : {}), stage: context.purpose === 'consolidation' ? 'maintenance' : 'decision' });
+  }
+
+  private requestEvidence(request: Request) {
+    return { requestId: request.id, actor: request.actor, stage: request.context.purpose === 'consolidation' ? 'maintenance' : 'decision',
+      ...(this.options.recordTimings ? { durationMs: Math.max(0, (request.finishedAt ?? Date.now()) - (request.startedAt ?? Date.now())) } : {}) };
+  }
+
+  private retryOutput(request: Request, feedback: string): void {
+    if (!request.memory) return;
+    this.continueRequest(request, { ...request.context, feedback }, request.memory);
   }
 
   private complete(completion: ModelCompletion<Request, ProviderResult>): void {
@@ -201,47 +324,103 @@ export class CharacterRunner {
     this.pending.delete(request.id);
     if ((request.finishedAt ?? Date.now()) > request.deadline) {
       request.controller.abort();
-      this.record('model-timeout', { requestId: request.id, actor: request.actor });
+      this.record('model-timeout', { ...this.requestEvidence(request) });
       return;
     }
     if (completion.status === 'rejected') {
       // Provider error text can contain request headers or credentials. Never record it.
-      this.record('model-error', { requestId: request.id, actor: request.actor, code: 'PROVIDER_ERROR' });
+      const diagnostic = completion.error instanceof ProviderFailure
+        ? new ProviderFailure(completion.error.diagnostic.reason, completion.error.diagnostic).diagnostic : undefined;
+      const usage = diagnostic && { inputTokens: diagnostic.inputTokens, outputTokens: diagnostic.outputTokens, cachedInputTokens: diagnostic.cachedInputTokens, reasoningTokens: diagnostic.reasoningTokens, cost: diagnostic.cost };
+      this.record('model-error', { ...this.requestEvidence(request), code: 'PROVIDER_ERROR',
+        ...(diagnostic ? { diagnostic, usage } : {}) });
       return;
     }
     const response = completion.input;
     if (!object(response)) {
-      this.record('model-error', { requestId: request.id, actor: request.actor, code: 'INVALID_OUTPUT' });
+      this.record('model-error', { ...this.requestEvidence(request), code: 'INVALID_OUTPUT' });
       return;
     }
+    const rawOutput = request.memory && typeof response.output === 'string' ? { rawOutput: response.output } : {};
     let output: unknown = response.output;
+    let normalization: 'code-fence' | undefined;
     if (typeof output === 'string') {
-      const parsed = readMappedCharacter(output);
+      let parsed = readMappedCharacter(output);
+      // Some JSON-mode providers append a closing Markdown fence (occasionally
+      // only two backticks). Remove presentation only; never repair JSON itself.
+      if (!parsed.ok) {
+        const unfenced = output.replace(/^\s*```(?:json)?[ \t]*\r?\n/, '').replace(/\r?\n`{2,3}\s*$/, '');
+        if (unfenced !== output) {
+          parsed = readMappedCharacter(unfenced);
+          if (parsed.ok) normalization = 'code-fence';
+        }
+      }
       output = parsed.ok ? parsed.value : undefined;
     }
     try { checkJsonValue(output); }
     catch { output = undefined; }
     const usage = response.usage;
-    const safeUsage = Object.fromEntries(['inputTokens', 'outputTokens', 'cost'].flatMap((key) => {
+    const telemetry = Object.fromEntries(Object.entries(response.telemetry ?? {}).filter(([key, value]) => ['provider', 'generationId', 'finishReason'].includes(key) && typeof value === 'string' && /^[A-Za-z0-9][A-Za-z0-9 ._:/-]{0,127}$/.test(value)));
+    const safeUsage = Object.fromEntries(['inputTokens', 'outputTokens', 'cachedInputTokens', 'reasoningTokens', 'cost'].flatMap((key) => {
       const amount = usage?.[key as keyof typeof usage];
       return typeof amount === 'number' && Number.isFinite(amount) && amount >= 0 ? [[key, amount]] : [];
     }));
     if (!object(output) || Object.keys(output).some((key) => key !== 'toolId' && key !== 'arguments')
       || !(typeof output.toolId === 'string' && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(output.toolId) || output.toolId === null) || !object(output.arguments)
       || output.toolId === null && Object.keys(output.arguments).length > 0) {
-      this.record('model-error', { requestId: request.id, actor: request.actor, code: 'INVALID_OUTPUT', usage: safeUsage });
+      this.record('model-error', { ...this.requestEvidence(request), code: 'INVALID_OUTPUT', usage: safeUsage, telemetry, ...rawOutput });
+      this.retryOutput(request, 'The previous response was not exactly one JSON decision. Return one object with toolId and arguments only, matching an available tool schema.');
       return;
     }
-    this.record('model-result', { requestId: request.id, actor: request.actor, output, usage: safeUsage });
+    if (request.memory && (request.context.purpose === 'consolidation' || output.toolId === recallTool.id)) {
+      const manager = this.memories.get(request.actor)!, memory = request.memory;
+      let context: DecisionContext;
+      let committed = false;
+      try {
+        if (request.context.purpose === 'consolidation') {
+          if (output.toolId !== compactTool.id || !memory.batch) throw new Error('Use the consolidation tool.');
+          manager.commit(request.actor, memory.batch, output.arguments, this.launch.runId);
+          committed = true;
+          const next = manager.cutoff(request.actor);
+          memory.cutoff = { ...next, evidence: memory.cutoff.evidence };
+          context = this.prepareMemoryContext(manager, memory, memory.calls + 1 < manager.settings.maxInternalCalls && this.requestCount + 1 < this.launch.config.limits.maxRequests);
+        } else {
+          const recalled = manager.recall(request.actor, memory.cutoff, output.arguments);
+          context = manager.assemble(memory.base, memory.turn, memory.cutoff, recalled, context => this.bindTools(context));
+          context.purpose = 'recall';
+          context.feedback = recalled.length ? 'Recall results are in memories. Read their sources or choose your world action.' : 'No matching accessible history was found. Try other words or a time range, or decide with uncertainty.';
+        }
+      } catch (error) {
+        if (committed) this.record('model-result', { ...this.requestEvidence(request), output, usage: safeUsage, telemetry, purpose: 'consolidation', memoryVersion: memory.cutoff.head.version });
+        else this.record('model-error', { ...this.requestEvidence(request), code: 'INVALID_MEMORY_OPERATION', usage: safeUsage, telemetry, output, ...rawOutput });
+        if (error instanceof ContextCapacityError) this.contextFailures.set(request.actor, error.message);
+        else this.retryOutput(request, 'Memory operation rejected: use only the supplied evidence IDs and tool schema, and respect the summary allowance.');
+        return;
+      }
+      this.record('model-result', { ...this.requestEvidence(request), output, usage: safeUsage, telemetry, purpose: request.context.purpose ?? 'recall', memoryVersion: memory.cutoff.head.version });
+      this.continueRequest(request, context, memory);
+      return;
+    }
+    if (request.memory && output.toolId !== null) {
+      const permitted = request.context.tools.find(tool => tool.id === output.toolId);
+      const diagnostics = permitted ? this.validateInput(permitted.inputSchema)(output.arguments).slice(0, 3) : [];
+      if (!permitted || diagnostics.length) {
+        this.record('model-error', { ...this.requestEvidence(request), code: 'INVALID_TOOL_OUTPUT', diagnostics, usage: safeUsage, telemetry, output, ...rawOutput });
+        const detail = permitted ? diagnostics.map(item => `/arguments${item.pointer}: ${item.message}`).join(' ') : '/toolId: Choose an available tool ID.';
+        this.retryOutput(request, `No world action was submitted. ${detail.slice(0, 1000)} Correct these fields or choose another available action.`);
+        return;
+      }
+    }
+    this.record('model-result', { ...this.requestEvidence(request), output, usage: safeUsage, telemetry, ...(normalization ? { normalization } : {}) });
     if (output.toolId === null) return; // Legal refusal/no action, without manufactured effects.
     const tool = request.context.tools.find((candidate) => candidate.id === output.toolId);
     const proposal: ActionProposal = { id: `action:${request.id}`, runId: this.launch.runId, actor: request.actor,
-      requestId: request.id, toolId: output.toolId, toolVersion: tool?.version ?? 'unknown', observedRevision: request.revision, arguments: json(output.arguments) as ActionProposal['arguments'] };
+      requestId: request.id, toolId: output.toolId, toolVersion: tool?.version ?? 'unknown', observedRevision: request.revision, arguments: json(output.toolId === reviseTool.id ? { ...output.arguments, expectedRevision: request.context.stateRevision } : output.arguments) as ActionProposal['arguments'] };
     this.ledger.propose(proposal);
     this.record('proposal', proposal);
-    const invalid = !tool || this.toolValidators.get(tool.id)!(proposal.arguments).length > 0;
+    const invalid = !tool || this.validateInput(tool.inputSchema)(output.arguments).length > 0;
     if (!invalid && proposal.toolId === reviseTool.id) {
-      this.applyStateEdit(proposal, output.arguments as unknown as StateEdit, request.context.memories.map(m => m.id));
+      this.applyStateEdit(proposal, proposal.arguments as unknown as StateEdit, [...request.context.memories, ...(request.context.recent ?? [])].map(m => m.id));
       return;
     }
     const unavailable = !this.host.availableTools(request.actor).includes(proposal.toolId);
@@ -258,13 +437,13 @@ export class CharacterRunner {
 
   private poll(): void {
     // Completion time, rather than the caller's polling latency, decides timeout.
-    for (const completion of this.runtime.poll([])) this.complete(completion);
+    for (const completion of this.runtime.poll([...this.pending.values()])) this.complete(completion);
     const now = Date.now();
     for (const request of this.pending.values()) {
       if (now >= request.deadline) {
         request.controller.abort();
         this.pending.delete(request.id);
-        this.record('model-timeout', { requestId: request.id, actor: request.actor });
+        this.record('model-timeout', { ...this.requestEvidence(request) });
       }
     }
     this.receive(this.host.drainEvents());
@@ -275,19 +454,27 @@ export class CharacterRunner {
     if (this.stopped) return;
     this.poll();
     if (this.steps >= this.launch.config.limits.maxSteps) return;
+    if (this.host.isComplete?.()) return;
     this.host.advance();
     this.steps++;
     this.receive(this.host.drainEvents());
     const perspectives = new Map<string, DecisionContext['observations']>();
+    const perceptions = new Map<string, NonNullable<DecisionContext['perception']>>();
     // Observation delivery continues while actions are unresolved or dispatch is paused.
     for (const actor of Object.keys(this.launch.states)) {
-      const observations = this.host.observe(actor);
+      const perception = this.host.perceive?.(actor);
+      const observations = perception ? [...perception.current, ...perception.events] : this.host.observe(actor);
+      const snapshots = new Set(perception?.current.map(o => o.id));
+      if (perception) {
+        if (new Set(observations.map(o => o.id)).size !== observations.length) throw new Error('Perception state and events must have distinct IDs.');
+        perceptions.set(actor, { currentStateIds: [...snapshots], eventIds: perception.events.map(o => o.id) });
+      }
       for (const observation of observations) {
         if (validateRecord('Observation', observation).length || observation.recipient !== actor || observation.runId !== this.launch.runId
           || validateTime(observation.capturedAt, this.registration.descriptor.clocks).length
           || validateTime(observation.deliveredAt, this.registration.descriptor.clocks).length) throw new Error('Host observation violates the recipient, clock, or schema contract.');
-        this.record('observation', observation);
-        if (this.launch.effectiveConfig[actor].features[continuityProfile.id]?.enabled) retainObservation(this.launch.states[actor], observation);
+        this.record('observation', observation, !snapshots.has(observation.id));
+        if (!snapshots.has(observation.id) && this.launch.effectiveConfig[actor].features[continuityProfile.id]?.enabled) if (!this.memories.has(actor)) retainObservation(this.launch.states[actor], observation);
       }
       perspectives.set(actor, structuredClone(observations));
     }
@@ -303,9 +490,16 @@ export class CharacterRunner {
       const observations = perspectives.get(actor)!;
       const available = this.host.availableTools(actor);
       const tools = this.registration.descriptor.toolCatalog.tools.filter((tool) => effective.allowedTools.includes(tool.id) && available.includes(tool.id));
+      const constraints = this.host.toolConstraints?.(actor) ?? {};
+      for (let index = 0; index < tools.length; index++) {
+        const tool = tools[index], constraint = constraints[tool.id];
+        if (constraint) {
+          this.validateInput(constraint); // Fail before provider dispatch on a malformed host schema.
+          tools[index] = { ...tool, inputSchema: { allOf: [tool.inputSchema, structuredClone(constraint)] } };
+        }
+      }
       const continuity = effective.features[continuityProfile.id]?.enabled;
       if (continuity) tools.push(structuredClone(reviseTool));
-      this.requestCount++;
       const id = `request:${++this.requestSequence}`;
       this.nextActor = (actors.indexOf(actor) + 1) % actors.length;
       const feature = effective.features[memoryRetrievalProfile.id];
@@ -313,30 +507,106 @@ export class CharacterRunner {
       const memories = feature?.enabled ? continuity ? selectContinuityMemories(stored, Number(feature.config?.maxItems))
         : [...stored].sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0).slice(0, Number(feature.config?.maxItems)) : [];
       const character = this.launch.characters[actor];
-      const context: DecisionContext = { runId: this.launch.runId, requestId: id, instanceId: actor,
+      let context: DecisionContext = { runId: this.launch.runId, requestId: id, instanceId: actor,
         character: { name: character.name, ...(character.persona ? { persona: structuredClone(character.persona) } : {}) },
         stateRevision: this.launch.states[actor].revision,
         intentions: structuredClone(this.launch.states[actor].context.intentions ?? []), memories: structuredClone(memories),
-        observations: structuredClone(observations), tools: structuredClone(tools), outcomes: this.ledger.eventsFor(actor), model: structuredClone(effective.model) };
-      const request: Request = { id, actor, context, revision: this.host.revision(), issuedAtTick: this.steps,
-        priority: 0, deadline: Date.now() + limits.requestTimeoutMs, controller: new AbortController() };
+        observations: structuredClone(observations), ...(perceptions.has(actor) ? { perception: perceptions.get(actor) } : {}), tools: structuredClone(tools), outcomes: this.memories.has(actor) ? [] : this.ledger.eventsFor(actor), model: structuredClone(effective.model) };
+      let memoryState: Request['memory'];
+      const manager = this.memories.get(actor);
+      if (manager) {
+        const cutoff = manager.cutoff(actor), base = structuredClone(context);
+        memoryState = { base, cutoff, turn: this.memoryTurn, calls: 0 };
+        try {
+          context = this.prepareMemoryContext(manager, memoryState, this.requestCount + 1 < limits.maxRequests);
+          this.contextFailures.delete(actor);
+        } catch (error) {
+          if (!(error instanceof ContextCapacityError)) throw error;
+          this.contextFailures.set(actor, error.message); continue;
+        }
+      }
+      this.bindTools(context);
+      if (manager && JSON.stringify(context).length > manager.settings.maxContextChars) { this.contextFailures.set(actor, 'Protected character context exceeds its configured capacity.'); continue; }
+      this.requestCount++;
+      const startedAt = Date.now();
+      const maintenanceMs = context.purpose === 'consolidation' ? manager?.settings.maintenanceTimeoutMs ?? 0 : 0;
+      const request: Request = { id, actor, context, memory: memoryState, startedAt, opportunityDeadline: startedAt + maintenanceMs + limits.requestTimeoutMs, revision: this.host.revision(), issuedAtTick: this.steps,
+        priority: 0, deadline: startedAt + (maintenanceMs || limits.requestTimeoutMs), controller: new AbortController() };
       this.pending.set(id, request);
-      this.record('request', { context, observedRevision: request.revision });
+      this.record('request', { context, observedRevision: request.revision, ...(this.options.recordTimings ? { deadline: request.deadline, opportunityDeadline: request.opportunityDeadline } : {}), stage: context.purpose === 'consolidation' ? 'maintenance' : 'decision' });
       for (const completion of this.runtime.poll([request])) this.complete(completion);
     }
   }
 
+  private prepareMemoryContext(manager: CharacterMemory, memory: NonNullable<Request['memory']>, canConsolidate: boolean): DecisionContext {
+    const { base, turn, cutoff } = memory;
+    memory.batch = canConsolidate ? manager.batch(base.instanceId, turn, cutoff) : undefined;
+    const assemble = () => {
+      const context = memory.batch ? manager.consolidationContext(base, memory.batch, cutoff)
+        : manager.assemble(base, turn, cutoff, undefined, context => this.bindTools(context));
+      this.bindTools(context);
+      if (JSON.stringify(context).length > manager.settings.maxContextChars) throw new ContextCapacityError();
+      return context;
+    };
+    try { return assemble(); }
+    catch (error) {
+      if (!(error instanceof ContextCapacityError) || memory.batch || !canConsolidate) throw error;
+      // Under byte pressure, do not wait for a full routine batch. Recent turns,
+      // original evidence, and the existing internal-call/deadline limits stay intact.
+      memory.batch = manager.batch(base.instanceId, turn, cutoff, true);
+      if (!memory.batch) throw error;
+      return assemble();
+    }
+  }
+
+  private validateInput(schema: object | boolean): ReturnType<typeof compileDataSchema> {
+    const key = canonicalJson(schema);
+    let validate = this.inputValidators.get(key);
+    if (!validate) {
+      validate = compileDataSchema(schema);
+      if (this.inputValidators.size >= 128) this.inputValidators.delete(this.inputValidators.keys().next().value!);
+      this.inputValidators.set(key, validate);
+    }
+    return validate;
+  }
+
+  private bindTools(context: DecisionContext): void {
+    const ids = [...context.memories, ...(context.recent ?? [])].map(m => m.id);
+    context.tools = context.tools.map(tool => tool.id === reviseTool.id ? decisionReviseTool(context.stateRevision, ids) : tool);
+    if (context.contextSize) { context.contextSize.sections.tools = JSON.stringify(context.tools).length; context.contextSize.characters = JSON.stringify({ ...context, contextSize: undefined }).length; }
+  }
+
   /** Waits only to local request deadlines; abort-ignoring provider work retains concurrency. */
   async settleDecisions(): Promise<void> {
-    if (this.pending.size) {
+    while (this.pending.size) {
+      this.poll();
+      if (!this.pending.size) break;
       let timer: ReturnType<typeof setTimeout> | undefined;
+      const wait = new AbortController();
       try {
-        const deadline = Math.max(...[...this.pending.values()].map((request) => request.deadline));
-        await Promise.race([this.runtime.settled(), new Promise<void>((resolve) => { timer = setTimeout(resolve, Math.max(0, deadline - Date.now())); }),
+        const deadline = Math.min(...[...this.pending.values()].map((request) => request.deadline));
+        await Promise.race([this.runtime.nextCompletion(wait.signal), new Promise<void>((resolve) => { timer = setTimeout(resolve, Math.max(0, deadline - Date.now())); }),
           new Promise<void>((resolve) => { this.wakeWait = resolve; })]);
-      } finally { if (timer) clearTimeout(timer); this.wakeWait = undefined; }
+      } finally { if (timer) clearTimeout(timer); wait.abort(); this.wakeWait = undefined; }
+      this.poll();
     }
     this.poll();
+    this.recordOperatorObservations();
+  }
+
+  /** Bounded cancellation cleanup. Never frees slots occupied by abort-ignoring work. */
+  async drainProviders(timeoutMs = 1000): Promise<boolean> {
+    if (!Number.isFinite(timeoutMs) || timeoutMs < 0 || timeoutMs > 60000) throw new Error('Cleanup timeout must be between 0 and 60000ms.');
+    const until = Date.now() + timeoutMs;
+    while (this.activeProviders && Date.now() < until) {
+      this.poll();
+      const wait = new AbortController();
+      const timer = setTimeout(() => wait.abort(), Math.max(0, until - Date.now()));
+      try { await this.runtime.nextCompletion(wait.signal); }
+      finally { clearTimeout(timer); wait.abort(); }
+    }
+    this.poll();
+    return this.activeProviders === 0;
   }
 
   pauseDispatch(paused = true): void { this.paused = paused; }
@@ -352,14 +622,20 @@ export class CharacterRunner {
     this.pending.clear();
     this.runtime.reset();
     this.wakeWait?.();
+    this.recordOperatorObservations();
     this.record('stopped', { pendingRequests, unresolvedActions: this.ledger.unresolved().length });
   }
-  events(): RunEvent[] { return structuredClone(this.history); }
-  inspect(): { host: JsonValue; launch: PreparedLaunch; status: ReturnType<CharacterRunner['status']> } {
-    return { host: structuredClone(this.host.inspect()), launch: structuredClone(this.launch), status: this.status() };
+  events(afterSequence = 0, limit = this.eventCount): RunEvent[] {
+    if (!Number.isSafeInteger(afterSequence) || afterSequence < 0) throw new Error('Invalid event cursor.');
+    return this.storage.read<RunEvent>(this.eventStream, { after: afterSequence - 1, limit }).map(row => row.value);
   }
-  status() { return { steps: this.steps, requests: this.requestCount, pendingRequests: this.pending.size,
-    activeProviders: this.activeProviders, unresolvedActions: this.ledger.unresolved().length, paused: this.paused, stopped: this.stopped }; }
+  launchSnapshot(): PreparedLaunch { return structuredClone(this.launch); }
+  inspect(): { host: JsonValue; launch: PreparedLaunch; status: ReturnType<CharacterRunner['status']> } {
+    return { host: structuredClone(this.host.inspect()), launch: this.launchSnapshot(), status: this.status() };
+  }
+  hostCapabilities() { return structuredClone(this.registration.descriptor.capabilities); }
+  status() { return { completed: this.host.isComplete?.() ?? false, steps: this.steps, requests: this.requestCount, pendingRequests: this.pending.size,
+    activeProviders: this.activeProviders, unresolvedActions: this.ledger.unresolved().length, paused: this.paused, stopped: this.stopped, ...(this.memories.size ? { contextFailures: Object.fromEntries(this.contextFailures), memory: Object.fromEntries([...this.memories].map(([actor, manager]) => [actor, manager.cutoff(actor)])) } : {}) }; }
   manifest(): RunBundle {
     const status = this.status();
     const descriptor = this.registration.descriptor;
@@ -378,9 +654,9 @@ export class CharacterRunner {
 
 /** All document/configuration compatibility gates precede host construction. */
 export function createCharacterRunner(
-  bundle: ResolvedBundle, registration: HostRegistration, connections: Readonly<Record<string, ModelConnection>>, runId: string,
+  bundle: ResolvedBundle, registration: HostRegistration, connections: Readonly<Record<string, ModelConnection>>, runId: string, options: RunnerOptions = {},
 ): FormatResult<CharacterRunner> {
-  return CharacterRunner.create(bundle, registration, connections, runId);
+  return CharacterRunner.create(bundle, registration, connections, runId, options);
 }
 
 /** Deterministic simulated-host verification, with no provider calls or continuation. */

@@ -1,0 +1,117 @@
+{
+  "specVersion": "0.2.0-draft.2",
+  "kind": "scenario",
+  "id": "scenario:infrastructure-recovery",
+  "resources": {
+    "character:aya": {
+      "path": "characters/aya.simkind.json"
+    },
+    "character:mira": {
+      "path": "characters/mira.simkind.json"
+    },
+    "character:sol": {
+      "path": "characters/sol.simkind.json"
+    },
+    "catalog:settlement": {
+      "path": "tools/settlement.json"
+    }
+  },
+  "host": {
+    "contractId": "example.settlement",
+    "version": "1.0.0"
+  },
+  "cast": [
+    {
+      "instanceId": "simkin:aya",
+      "characterRef": "character:aya",
+      "initialState": {
+        "intentions": [
+          {
+            "id": "intention:0",
+            "description": "Find out what is wrong with the water supply"
+          }
+        ]
+      }
+    },
+    {
+      "instanceId": "simkin:mira",
+      "characterRef": "character:mira",
+      "initialState": {
+        "intentions": [
+          {
+            "id": "intention:1",
+            "description": "Make sure neighbors can obtain water"
+          }
+        ]
+      }
+    },
+    {
+      "instanceId": "simkin:sol",
+      "characterRef": "character:sol",
+      "initialState": {
+        "intentions": [
+          {
+            "id": "intention:2",
+            "description": "Keep the garden supplied without wasting resources"
+          }
+        ]
+      }
+    }
+  ],
+  "toolCatalogRef": "catalog:settlement",
+  "initialConditions": {
+    "sharedContext": "An isolated industrial campus has lost its water pump. This is a cooperative recovery problem with limited water and spare parts; personal priorities still differ. Workshop, square and reservoir name campus locations. Inspect, move supplies, repair or negotiate as you judge useful. No required leader or scripted plan. Completed actions determine actual recovery; assurances do not repair equipment.",
+    "places": [
+      {
+        "id": "square",
+        "neighbors": [
+          "workshop",
+          "reservoir"
+        ],
+        "stock": {
+          "water": 2
+        }
+      },
+      {
+        "id": "workshop",
+        "neighbors": [
+          "square",
+          "reservoir"
+        ],
+        "stock": {
+          "parts": 3
+        }
+      },
+      {
+        "id": "reservoir",
+        "neighbors": [
+          "square",
+          "workshop"
+        ],
+        "stock": {
+          "water": 5
+        }
+      }
+    ],
+    "positions": {
+      "simkin:aya": "workshop",
+      "simkin:mira": "square",
+      "simkin:sol": "reservoir"
+    },
+    "inventories": {
+      "simkin:aya": {
+        "parts": 1
+      },
+      "simkin:mira": {
+        "water": 1
+      },
+      "simkin:sol": {}
+    },
+    "pump": {
+      "location": "reservoir",
+      "broken": true,
+      "partsRequired": 2
+    },
+    "travelTicks": 2
+  }
+}

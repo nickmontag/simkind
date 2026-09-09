@@ -23,8 +23,14 @@ npm run scenario -- --scenario workshop.json
 npm run scenario -- --scenario pump-crisis.json
 ```
 
-The first two situations share `example.conversation` host version `1.0.0`.
-The third uses `example.settlement` version `1.0.0`. All three use the same public
+For new hosts and scenarios, follow [Building simulations](building-simulations.md)
+for state/event separation, audience rules, participant receipts, and character
+interpretations. Use [Durable runs](durable-runs.md) for unattended execution.
+
+The first two situations share `example.conversation` host contract version `1.0.0`.
+The third uses `example.settlement` contract version `1.0.0`. New launches use
+implementation `1.2.0` for both hosts; older recordings retain their exact
+implementation. All three use the same public
 runner. The host implementations are small reference integrations under
 `examples/portable/hosts/`; the original six-character settlement prototype and
 its existing recordings remain unchanged.
@@ -95,7 +101,7 @@ file such as `.internal/connections.json`:
     "provider": "openrouter",
     "model": "provider/your-selected-model",
     "apiKeyEnv": "OPENROUTER_API_KEY",
-    "settings": { "temperature": 0.7, "maxOutputTokens": 500 }
+    "settings": { "temperature": 0.7 }
   },
   "secondary": {
     "provider": "openrouter",
@@ -207,7 +213,9 @@ console.log(runner.status(), runner.events());
 Observation envelopes identify recipient, source, captured/delivered times,
 and host revision. The initial runner accepts text and structured-data content;
 media, embodiment, and spatial profiles remain later work. Operator inspection
-is separate from character context. Provider callbacks receive copies of their
+is separate from character context. Hosts can implement `perceive(actor)` to
+separate current state from newly delivered events; the original `observe(actor)`
+contract remains supported. See [the perception contract](building-simulations.md#separate-state-new-events-and-history). Provider callbacks receive copies of their
 own context, including actual selected memories, tools, and their action outcomes.
 
 Proposals bind run, actor, request, tool/version, observed revision, and action ID.

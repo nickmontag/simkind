@@ -181,3 +181,7 @@ export function resolveSources(sources: Readonly<Record<string, string>>, scenar
     return { ok: true, value: bundle };
   } catch (error) { return { ok: false, diagnostics: [diagnostic('referential', 'SOURCE_RESOLUTION_FAILED', '', (error as Error).message)] }; }
 }
+
+export { SqliteRunnerStorage } from './sqlite-storage.js';
+export { saveArchivedRun, openArchivedRun, isArchivedRun, recoverArchivedCheckpoint } from './archived-run.js';
+export * from './durable-session.js';

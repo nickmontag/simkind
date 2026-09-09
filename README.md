@@ -14,7 +14,7 @@ let the simulation replay the same sequence without calling the model again.
 
 ## Quick start: bring your own API key
 
-You need **Node.js 22.12 or later**, npm, and an **OpenRouter API key** with
+You need **Node.js 22.16 or later**, npm, and an **OpenRouter API key** with
 available credits. You choose the model; there is no default. The portable adapters support OpenRouter, Ollama, and compatible JSON-text chat endpoints. See [provider setup](docs/providers-and-spatial.md).
 
 ### 1. Install
@@ -69,6 +69,16 @@ host-defined world changes, and compare sibling continuations from the same
 checkpoint. Open saved runs without making provider calls.
 See the [playground guide](docs/playground.md).
 
+For an economy experiment, choose **small economy**: four characters with unequal
+resources and different skills can produce, barter, negotiate wages, and hire each
+other. Watch the live market dashboard, then scrub recorded snapshots or export
+daily CSV after the run. See [Small Economy](docs/economy.md) for rules and controls.
+
+For a business experiment, choose **fabrication shop**: four characters negotiate
+customer orders, paid manufacturing and equipment rentals while rent consumes cash.
+Add public orders or private leads from the turn report, then watch the characters
+react. See [Fabrication shop](docs/fabrication-shop.md).
+
 ### Run headlessly or embed the same loop
 
 ```sh
@@ -89,7 +99,7 @@ They retain their existing host-specific replay readers.
 
 ### Setup troubleshooting
 
-- **Node version error:** use Node 22.12 or later, then rerun `npm run setup`.
+- **Node version error:** use Node 22.16 or later, then rerun `npm run setup`.
 - **Missing key or model:** rerun setup, then fill in `OPENROUTER_API_KEY` and
   `OPENROUTER_MODEL` in the root `.env`. Setup preserves existing files.
 - **No successful model requests or provider-error fallbacks:** check that your
@@ -199,3 +209,7 @@ track M1–M7 implementation evidence and remaining release gates.
 They are explicitly drafts, separate from current usage instructions.
 
 Licensed under the [MIT License](LICENSE).
+
+For new scenario designs, see [Building simulations](docs/building-simulations.md):
+separate current state, exact witnessed events, and character interpretations.
+Use [Durable runs](docs/durable-runs.md) for supervised sessions independent of the browser.
