@@ -107,7 +107,7 @@ try {
   const recording='recording-'+id;
   if (!failure && runner.status().unresolvedActions) { runner.step(); await runner.settleDecisions(); }
   await runner.drainProviders();
-  const report = {phase,model,structuredOutputs:true,outputCap:null,turns:lastTurn,globalCallsUsed:used,elapsedMs:Date.now()-start,maxContextCharacters:maxContext,errors,recording,status:runner.status(),
+  const report = {phase,model,structuredOutputs:true,outputCap:null,turns:lastTurn,targetTurns:turns,completedHistory:lastTurn===turns,stopReason:failure?'failure':lastTurn<turns?'call-budget':'history-finished',globalCallsUsed:used,elapsedMs:Date.now()-start,maxContextCharacters:maxContext,errors,recording,status:runner.status(),
     ...(failure ? { failure: (failure as Error).message } : {}), responses:phase==='memory'?responses.filter((r:any)=>r.purpose!=='consolidation'):undefined,economy:phase==='economy'?economyReport(runner.inspect().host):undefined};
   // Analysis survives an export failure; the active database is retained as well.
   writeFileSync(out+phase+'-report.json',JSON.stringify(report,null,2));

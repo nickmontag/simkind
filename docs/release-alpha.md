@@ -2,8 +2,8 @@
 
 The scoped Phase 2 alpha capabilities are implemented locally. The package remains
 an experimental release candidate, not a stable API or an established standard.
-Registry publication is not recorded as completed; the last publishing check was
-blocked by npm authentication. Independent human onboarding trials and comparative
+Registry publication remains pending: `npm whoami` on September 9 returned
+`ENEEDAUTH`. Independent human onboarding trials and comparative
 character-intelligence benchmarks remain open.
 
 ## Current capabilities and versions
@@ -91,6 +91,12 @@ source retrieval, interpretation, and character choice.
 The original three-call GLM transport sample and earlier test counts are historical
 checkpoints. They are not the current reliability sample. Remote/local compatible
 adapters have mock coverage; broad live provider compatibility is not established.
+The September 9 cross-scenario evaluation used 150 calls in six retained trials;
+three ended during maintenance at their call ceilings. The controlled GLM memory
+history reached turn 1,009 with 14/16 questions correct (one retrieval miss, one lost
+network response). A Gemini full-pipeline trial failed on schema complexity; a
+separate common-context JSON-mode reading check passed 8/8. See the
+[complete methods and results](behavioral-evaluation.md) for exclusions and limits.
 No SOTA ranking is claimed.
 
 ## Supported limits and deferred work
@@ -115,8 +121,9 @@ No SOTA ranking is claimed.
 
 ## Remaining release gates
 
-Reconcile and commit the current implementation and evidence; run the release checks
-against that exact tree; perform an independent contributor walkthrough; then publish
+The implementation is consolidated in commit `030edc7`, with evaluation findings
+recorded separately. Local engineering and package checks pass. Remaining gates are
+an independent contributor walkthrough and publishing
 an explicitly reviewed alpha artifact when registry authentication is available.
 Publishing to npm and pushing Git history are separate actions.
 

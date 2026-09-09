@@ -15,6 +15,8 @@ it('stops a live evaluation on an incompatible transport and preserves its repor
     })).toThrow();
     const report = JSON.parse(readFileSync(join(output, 'memory-report.json'), 'utf8'));
     expect(report.failure).toContain('HTTP 400');
+    expect(report.completedHistory).toBe(false);
+    expect(report.stopReason).toBe('failure');
     expect(report.globalCallsUsed).toBeGreaterThan(0);
     expect(report.globalCallsUsed).toBeLessThanOrEqual(2);
     expect(report.turns).toBeLessThan(100);

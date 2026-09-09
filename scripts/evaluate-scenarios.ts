@@ -26,7 +26,8 @@ async function run(scenario: string, repeat: number) {
   });
   const report = JSON.parse(await readFile(`${path}.report.json`, 'utf8'));
   console.log(JSON.stringify({ scenario, repeat, state: report.state, steps: report.status.steps, requests: report.status.requests, errors: report.errors, usage: report.usage }));
-  if (code !== 0) throw new Error('A worker failed; its evidence is retained. No automatic restart.');
+  // Preserve a failed trial and continue the independent situations; never retry it.
+  if (code !== 0) process.exitCode = 1;
   return { scenario, repeat, code, ...report };
 }
 

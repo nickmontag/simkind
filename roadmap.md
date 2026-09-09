@@ -183,14 +183,22 @@ repeatable evidence and contributor readiness, rather than more core features.
   remain available through explicit recall.
 - [x] Latest engineering checkpoint: 243 tests; two 1,000-turn procedural soaks;
   package consumer, deterministic fixture, public-file, and exact-restore checks.
-- [ ] Repeated friendship, cooperative, and competitive live trials, reported
-  without rewarding a prescribed ending.
+- [x] Repeated friendship, cooperative, and competitive live trials, reported
+  without rewarding a prescribed ending; three trials stopped at their maintenance/call budgets.
 - [ ] Same-history cross-model long-memory evaluation, with retrieval misses,
   unsupported claims, privacy, cost, and latency reported separately.
-- [ ] Consolidated implementation/evaluation commits and current release evidence.
+- [x] Consolidated implementation/evaluation commits and current release evidence.
 - [ ] Independent human scenario-authoring and embedding walkthrough.
 - [ ] npm alpha publication.
 
 See [behavioral evaluation](docs/behavioral-evaluation.md) for the bounded test plan.
 Mechanical 10,000-turn success is not proof of 10,000-turn semantic continuity.
 General social/narrative quality and comparative SOTA claims remain unproven.
+
+September 9 results: 294 total calls including excluded setup and diagnostics;
+$0.34109 reported usage. The GLM controlled history reached 1,009 turns, with 14 correct
+answers, one retrieval miss, and one network-lost answer out of 16. Gemini's full
+structured-schema pipeline was incompatible; an explicitly narrower common-context
+reading check passed 8/8 in JSON mode. Cross-model end-to-end memory comparison remains
+open. Retrieval relevance, provider schema compatibility, and comparable decision
+budgets are the next evidence-backed priorities.
