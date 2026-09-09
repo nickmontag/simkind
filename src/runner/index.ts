@@ -10,3 +10,4 @@ export * from './storage.js';
 export * from './long-memory.js';
 export * from './evidence.js';
 export * from './perception.js';
+export * from './memory-policy.js';

@@ -13,17 +13,18 @@ try {
   await writeFile(join(directory, 'consumer.ts'), `
 import { rankMemories } from 'simkind';
 import { readDocument, importCharacterCard } from 'simkind/format';
-import { createCharacterRunner, CharacterRunner, continuityProfile, replayCheckpoint, PerceptionJournal } from 'simkind/runner';
+import { createCharacterRunner, CharacterRunner, continuityProfile, replayCheckpoint, PerceptionJournal, createSituationalMemoryPolicy } from 'simkind/runner';
 import { loadScenario, loadRun, saveRun, resolveSources, SqliteRunnerStorage, saveArchivedRun, openArchivedRun, recoverArchivedCheckpoint, runDurably } from 'simkind/node';
-import { ollamaConnection, openRouterConnection } from 'simkind/providers';
+import { ollamaConnection, openRouterConnection, compatibleMemoryEmbeddings } from 'simkind/providers';
 import { toWorld, worldFrame } from 'simkind/spatial';
-void [rankMemories, readDocument, importCharacterCard, createCharacterRunner, CharacterRunner, continuityProfile, replayCheckpoint, PerceptionJournal, loadScenario, loadRun, saveRun, resolveSources, SqliteRunnerStorage, saveArchivedRun, openArchivedRun, recoverArchivedCheckpoint, runDurably, ollamaConnection, openRouterConnection, toWorld, worldFrame];
+void [rankMemories, readDocument, importCharacterCard, createCharacterRunner, CharacterRunner, continuityProfile, replayCheckpoint, PerceptionJournal, createSituationalMemoryPolicy, compatibleMemoryEmbeddings, loadScenario, loadRun, saveRun, resolveSources, SqliteRunnerStorage, saveArchivedRun, openArchivedRun, recoverArchivedCheckpoint, runDurably, ollamaConnection, openRouterConnection, toWorld, worldFrame];
 `);
   const guide = await readFile(join(directory, 'node_modules/simkind/docs/building-simulations.md'), 'utf8');
   const sample = guide.match(/```ts\n([\s\S]*?)```/);
   if (!sample) throw new Error('Missing scenario authoring example.');
   await writeFile(join(directory, 'scenario-guide.ts'), sample[1]);
   await readFile(join(directory, 'node_modules/simkind/docs/durable-runs.md'), 'utf8');
+  await readFile(join(directory, 'node_modules/simkind/docs/memory-policies.md'), 'utf8');
   await writeFile(join(directory, 'tsconfig.json'), JSON.stringify({ compilerOptions: { module: 'NodeNext', target: 'ES2022', strict: true, noEmit: true, skipLibCheck: true }, files: ['consumer.ts', 'scenario-guide.ts'] }));
   execFileSync(resolve(root, 'node_modules/.bin/tsc'), ['-p', 'tsconfig.json'], { cwd: directory, stdio: 'inherit' });
   await cp(resolve(root, 'fixtures/runs/shared-decision'), join(directory, 'recorded'), { recursive: true });

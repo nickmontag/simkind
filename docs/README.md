@@ -15,6 +15,7 @@ experimental 0.2.0-alpha.1 library; proposed features are labeled separately.
 | [Host integration](integration.md) | Connect character decisions to your simulation |
 | [Experimental character format](character-format.md) | Validate and round-trip the first Phase 2 character document subset |
 | [Portable scenarios and runner](portable-scenarios.md) | Author and run portable casts and situations |
+| [Memory policies](memory-policies.md) | Configure situational recall, working concerns, embedding adapters and replaceable memory strategy |
 | [Continuity](continuity.md) | Retain evidence and revise optional intentions/interpretations |
 | [Local playground](playground.md) | Author, inspect, step, and open recorded runs |
 | [Small Economy](economy.md) | Watch unequal resources, negotiated trades and jobs, then inspect recorded market history |

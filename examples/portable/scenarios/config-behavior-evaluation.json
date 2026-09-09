@@ -45,6 +45,7 @@
   "limits": {
     "maxSteps": 8,
     "maxRequests": 28,
+    "maxDecisionOpportunitiesPerActor": 8,
     "maxInFlight": 3,
     "requestTimeoutMs": 300000
   }

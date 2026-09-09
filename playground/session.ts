@@ -1,3 +1,4 @@
+import { memoryPolicyFromEnvironment } from '../examples/portable/memory-options.js';
 import { mkdirSync } from 'node:fs';
 import { observerEvent } from './evidence.js';
 import { randomUUID } from 'node:crypto';
@@ -11,7 +12,7 @@ import { installedHost } from '../examples/portable/hosts/registry.js';
 import { shopReport, recordedShopReports } from '../examples/fabrication/report.js';
 import { economyReport, recordedEconomyReports } from '../examples/economy/report.js';
 
-export interface Slot { structuredOutputs?: boolean; provider: 'openrouter' | 'ollama' | 'compatible'; model: string; apiKeyEnv?: string; endpoint?: string; settings?: ModelConnection['public']['settings'] }
+export interface Slot { responseMode?: 'schema' | 'json' | 'text'; structuredOutputs?: boolean; provider: 'openrouter' | 'ollama' | 'compatible'; model: string; apiKeyEnv?: string; endpoint?: string; settings?: ModelConnection['public']['settings'] }
 export interface Draft { scenarioPath: string; configPath: string; sources: Record<string, string>; slots: Record<string, Slot> }
 const templates = ['shared-decision.json', 'workshop.json', 'pump-crisis.json', 'orbital-greenhouse.json', 'small-economy.json', 'fabrication-shop.json'];
 export class PlaygroundSession {
@@ -42,7 +43,7 @@ export class PlaygroundSession {
     const loaded = await loadScenario(this.scenarioRoot, name, configPath);
     if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
     return { sources: loaded.value.sources, scenarioPath: name, configPath,
-      slots: { primary: { provider: 'openrouter', model: this.env.OPENROUTER_MODEL ?? '', structuredOutputs: this.env.SIMKIND_STRUCTURED_OUTPUTS === '1', apiKeyEnv: 'OPENROUTER_API_KEY' } } };
+      slots: { primary: { provider: 'openrouter', model: this.env.OPENROUTER_MODEL ?? '', responseMode: this.env.SIMKIND_RESPONSE_MODE as Slot['responseMode'], structuredOutputs: this.env.SIMKIND_STRUCTURED_OUTPUTS === '1' ? true : undefined, apiKeyEnv: 'OPENROUTER_API_KEY' } } };
   }
   private prepare(draft: Draft) {
     const loaded = resolveSources(draft.sources, draft.scenarioPath, draft.configPath);
@@ -54,11 +55,11 @@ export class PlaygroundSession {
     for (const [slot, config] of Object.entries(draft.slots)) {
       if (this.fixtureConnection) { const fixture = this.fixtureConnection; connections[slot] = { ...fixture, fulfill: (context, signal) => context.purpose === 'consolidation' ? Promise.resolve({ output: { toolId: 'simkind.compact', arguments: { summary: 'Deterministic fixture; original experiences remain searchable.', episodes: [] } } }) : fixture.fulfill(context, signal) }; continue; }
       const key = this.env[config.apiKeyEnv ?? 'OPENROUTER_API_KEY'] ?? '';
-      if (config.provider === 'openrouter') connections[slot] = openRouterConnection(key, config.model, config.settings, { structuredOutputs: config.structuredOutputs });
-      else if (config.provider === 'ollama') connections[slot] = ollamaConnection(config.model, config.endpoint || undefined, config.settings);
+      if (config.provider === 'openrouter') connections[slot] = openRouterConnection(key, config.model, config.settings, { responseMode: config.responseMode, structuredOutputs: config.structuredOutputs });
+      else if (config.provider === 'ollama') connections[slot] = ollamaConnection(config.model, config.endpoint || undefined, config.settings, { responseMode: config.responseMode });
       else if (config.provider === 'compatible') {
         if (!config.endpoint) throw new Error('Supply the compatible chat-completions endpoint.');
-        connections[slot] = chatCompletionsConnection({ provider: 'compatible', model: config.model, endpoint: config.endpoint, apiKey: key, settings: config.settings, structuredOutputs: config.structuredOutputs });
+        connections[slot] = chatCompletionsConnection({ provider: 'compatible', model: config.model, endpoint: config.endpoint, apiKey: key, settings: config.settings, responseMode: config.responseMode, structuredOutputs: config.structuredOutputs });
       } else throw new Error('Unknown provider.');
     }
     const runId = `run:${randomUUID()}`;
@@ -73,7 +74,7 @@ export class PlaygroundSession {
     const enabled = Object.values(prepared.launch.effectiveConfig).some(config => config.features[contextProfile.id]?.enabled);
     let storage: SqliteRunnerStorage | undefined;
     if (enabled) { mkdirSync(join(this.runRoot, '.active'), { recursive: true, mode: 0o700 }); storage = new SqliteRunnerStorage(join(this.runRoot, '.active', `${randomUUID()}.sqlite`)); }
-    const result = createCharacterRunner(prepared.bundle, prepared.host, prepared.connections, prepared.runId, { storage, recordTimings: !this.fixtureConnection });
+    const result = createCharacterRunner(prepared.bundle, prepared.host, prepared.connections, prepared.runId, { storage, recordTimings: !this.fixtureConnection, memoryPolicy: this.fixtureConnection ? undefined : memoryPolicyFromEnvironment(this.env) });
     if (!result.ok) { storage?.close(); throw new Error(JSON.stringify(result.diagnostics)); }
     this.runner?.stop(); this.storage?.close(); this.archived?.close(); this.archived = undefined; this.storage = storage; this.automatic = false; this.failure = undefined;
     this.runner = result.value; this.bundle = prepared.bundle; this.connections = prepared.connections;
@@ -177,8 +178,8 @@ export class PlaygroundSession {
     const connections: Record<string, ModelConnection> = Object.create(null);
     for (const effective of Object.values(checkpoint.launch.effectiveConfig)) {
       if (this.fixtureConnection) connections[effective.modelSlot] = this.fixtureConnection;
-      else if (effective.model.provider === 'openrouter') connections[effective.modelSlot] = openRouterConnection(this.env.OPENROUTER_API_KEY ?? '', effective.model.model, effective.model.settings, { structuredOutputs: checkpoint.modelCapabilities?.[effective.modelSlot]?.jsonSchema });
-      else if (effective.model.provider === 'ollama') connections[effective.modelSlot] = ollamaConnection(effective.model.model, undefined, effective.model.settings);
+      else if (effective.model.provider === 'openrouter') connections[effective.modelSlot] = openRouterConnection(this.env.OPENROUTER_API_KEY ?? '', effective.model.model, effective.model.settings, { responseMode: checkpoint.modelCapabilities?.[effective.modelSlot]?.responseMode, structuredOutputs: checkpoint.modelCapabilities?.[effective.modelSlot]?.jsonSchema });
+      else if (effective.model.provider === 'ollama') connections[effective.modelSlot] = ollamaConnection(effective.model.model, undefined, effective.model.settings, { responseMode: checkpoint.modelCapabilities?.[effective.modelSlot]?.responseMode });
       else if (this.connections[effective.modelSlot]) connections[effective.modelSlot] = this.connections[effective.modelSlot];
       else throw new Error('Configure this provider connection in a live session before branching.');
     }
@@ -199,7 +200,7 @@ export class PlaygroundSession {
       await source.copyTo(path);
       const storage = new SqliteRunnerStorage(path);
       let child: CharacterRunner;
-      try { child = CharacterRunner.restore(checkpoint, host, connections, `run:${randomUUID()}`, { storage, recordTimings: !this.fixtureConnection }); }
+      try { child = CharacterRunner.restore(checkpoint, host, connections, `run:${randomUUID()}`, { storage, recordTimings: !this.fixtureConnection, memoryPolicy: !this.fixtureConnection && checkpoint.memoryPolicy ? memoryPolicyFromEnvironment(this.env, checkpoint.memoryPolicy) : undefined }); }
       catch (error) { storage.close(); throw error; }
       this.stop(); this.storage?.close(); this.archived?.close(); this.archived = undefined; this.playback = undefined;
       this.storage = storage; this.runner = child; this.connections = connections; this.bundle = checkpoint.launch.bundle; this.parent = checkpoint;

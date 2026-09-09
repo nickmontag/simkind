@@ -5,16 +5,17 @@ import { resolve, dirname } from 'node:path';
 import { loadScenario, saveRun, SqliteRunnerStorage, runDurably } from 'simkind/node';
 import { createCharacterRunner, prepareLaunch, contextProfile, type ModelConnection } from 'simkind/runner';
 import { compileDataSchema, readJson } from 'simkind/format';
+import { memoryPolicyFromEnvironment } from './memory-options.js';
 import { installedHost } from './hosts/registry.js';
 import { ollamaConnection } from 'simkind/providers';
-import { openRouterConnection } from 'simkind/providers';
+import { openRouterConnection, type ResponseMode } from 'simkind/providers';
 
 const { values } = parseArgs({ options: {
   root: { type: 'string', default: 'examples/portable/scenarios' },
   scenario: { type: 'string', default: 'shared-decision.json' },
   config: { type: 'string', default: 'config-continuity.json' }, connections: { type: 'string' },
   output: { type: 'string' }, check: { type: 'boolean', default: false },
-  fixture: { type: 'boolean', default: false }, 'structured-outputs': { type: 'boolean', default: false }, 'max-output-tokens': { type: 'string' },
+  fixture: { type: 'boolean', default: false }, 'response-mode': { type: 'string' }, 'structured-outputs': { type: 'boolean', default: false }, 'max-output-tokens': { type: 'string' },
 } });
 
 async function main() {
@@ -24,6 +25,7 @@ async function main() {
   if (scenario.kind !== 'scenario') throw new Error('The scenario entry is not a scenario document.');
   const host = installedHost(scenario.host.contractId);
   const connections: Record<string, ModelConnection> = Object.create(null);
+  let memoryPolicy: ReturnType<typeof memoryPolicyFromEnvironment>;
   const settings = values['max-output-tokens'] ? { maxOutputTokens: Number(values['max-output-tokens']) } : {};
   if (values.fixture) {
     connections.primary = { public: { provider: 'fixture', model: 'no-action-v1', settings: {} }, capabilities: { text: true, json: true },
@@ -33,20 +35,21 @@ async function main() {
     try { fileEnv = parseEnv(await readFile('.env', 'utf8')); }
     catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
     const env = { ...fileEnv, ...process.env };
+    memoryPolicy = memoryPolicyFromEnvironment(env);
     if (values.connections) {
       const source = readJson(await readFile(values.connections, 'utf8'));
       if (!source.ok) throw new Error('Connections file must contain strict JSON.');
       const schema = { type: 'object', propertyNames: { pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$' }, additionalProperties: {
         type: 'object', additionalProperties: false, required: ['provider', 'model', 'apiKeyEnv'], properties: {
           provider: { const: 'openrouter' }, model: { type: 'string', minLength: 1 }, apiKeyEnv: { type: 'string', pattern: '^[A-Z_][A-Z0-9_]*$' },
-          structuredOutputs: { type: 'boolean' }, settings: { type: 'object', additionalProperties: false, properties: { temperature: { type: 'number', minimum: 0, maximum: 2 }, maxOutputTokens: { type: 'integer', minimum: 1 } } },
+          responseMode: { enum: ['schema', 'json', 'text'] }, structuredOutputs: { type: 'boolean' }, settings: { type: 'object', additionalProperties: false, properties: { temperature: { type: 'number', minimum: 0, maximum: 2 }, maxOutputTokens: { type: 'integer', minimum: 1 } } },
         },
       } };
       if (compileDataSchema(schema)(source.value).length) throw new Error('Invalid connection slots. Use provider, explicit model, apiKeyEnv, and optional public settings.');
-      for (const [slot, config] of Object.entries(source.value as Record<string, { model: string; apiKeyEnv: string; structuredOutputs?: boolean; settings?: ModelConnection['public']['settings'] }>)) {
-        connections[slot] = openRouterConnection(env[config.apiKeyEnv] ?? '', config.model, config.settings, { structuredOutputs: config.structuredOutputs });
+      for (const [slot, config] of Object.entries(source.value as Record<string, { model: string; apiKeyEnv: string; responseMode?: ResponseMode; structuredOutputs?: boolean; settings?: ModelConnection['public']['settings'] }>)) {
+        connections[slot] = openRouterConnection(env[config.apiKeyEnv] ?? '', config.model, config.settings, { structuredOutputs: config.structuredOutputs, responseMode: config.responseMode });
       }
-    } else connections.primary = env.SIMKIND_PROVIDER === 'ollama' ? ollamaConnection(env.OLLAMA_MODEL ?? '', env.OLLAMA_ENDPOINT || undefined, settings) : openRouterConnection(env.OPENROUTER_API_KEY ?? '', env.OPENROUTER_MODEL ?? '', settings, { structuredOutputs: values['structured-outputs'] });
+    } else connections.primary = env.SIMKIND_PROVIDER === 'ollama' ? ollamaConnection(env.OLLAMA_MODEL ?? '', env.OLLAMA_ENDPOINT || undefined, settings, { responseMode: (values['response-mode'] ?? env.SIMKIND_RESPONSE_MODE) as ResponseMode | undefined }) : openRouterConnection(env.OPENROUTER_API_KEY ?? '', env.OPENROUTER_MODEL ?? '', settings, { structuredOutputs: values['structured-outputs'] ? true : undefined, responseMode: (values['response-mode'] ?? env.SIMKIND_RESPONSE_MODE) as ResponseMode | undefined });
   }
   const runId = `run:${randomUUID()}`;
   const prepared = prepareLaunch(loaded.value, host, connections, runId);
@@ -60,7 +63,7 @@ async function main() {
   if (process.env.SIMKIND_SUPERVISED && !archived) throw new Error('Supervised runs require simkind.context and simkind.continuity in the run configuration.');
   if (archived) await writeFile(output + '.active.sqlite', '', { flag: 'wx', mode: 0o600 });
   const storage = archived ? new SqliteRunnerStorage(output + '.active.sqlite') : undefined;
-  const result = createCharacterRunner(loaded.value, host, connections, runId, { storage, recordTimings: !values.fixture });
+  const result = createCharacterRunner(loaded.value, host, connections, runId, { storage, recordTimings: !values.fixture, memoryPolicy });
   if (!result.ok) { storage?.close(); throw new Error('Launch compatibility changed.'); }
   const runner = result.value;
   if (storage) {

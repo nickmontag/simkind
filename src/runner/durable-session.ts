@@ -42,8 +42,8 @@ export async function runDurably(runner: CharacterRunner, storage: SqliteRunnerS
     for (;;) {
       const events = runner.events(report.events, 256);
       for (const event of events) {
-        const data = event.data as { usage?: ProviderUsage };
-        if (['model-error', 'model-timeout'].includes(event.type)) report.errors++;
+        const data = event.data as { usage?: ProviderUsage; phase?: string };
+        if (['model-error', 'model-timeout'].includes(event.type) || event.type === 'memory-retrieval' && ['failed', 'timeout'].includes(data.phase ?? '')) report.errors++;
         for (const key of ['inputTokens', 'outputTokens', 'cachedInputTokens', 'reasoningTokens', 'cost'] as const) {
           const value = data.usage?.[key];
           if (typeof value === 'number' && Number.isFinite(value) && value >= 0) report.usage[key] = (report.usage[key] ?? 0) + value;
@@ -73,6 +73,7 @@ export async function runDurably(runner: CharacterRunner, storage: SqliteRunnerS
       if (Object.keys(status.contextFailures ?? {}).length) { report.state = 'failed'; report.reason = 'Character context or opportunity capacity failed.'; break; }
       if (!status.stopped && !status.unresolvedActions && !status.pendingRequests && !status.activeProviders) runner.checkpoint();
       await update();
+      if (status.opportunityLimitReached) { report.state = 'limit-reached'; report.reason = 'Per-character decision opportunity limit reached; successful decisions are not implied.'; break; }
       if (status.requests >= runner.launchSnapshot().config.limits.maxRequests) { report.state = 'limit-reached'; report.reason = 'Request budget reached.'; break; }
     }
     if (report.state === 'running') {

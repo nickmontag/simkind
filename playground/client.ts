@@ -77,7 +77,7 @@ function captureDraft() {
 function syncSlot() {
   if (!draft) return;
   const slots: Record<string, Slot> = JSON.parse(el<HTMLTextAreaElement>('slots').value);
-  slots.primary = { ...slots.primary, structuredOutputs: el<HTMLInputElement>('structured-outputs').checked, provider: el<HTMLSelectElement>('provider').value as Slot['provider'], model: el<HTMLInputElement>('model').value,
+  slots.primary = { ...slots.primary, structuredOutputs: undefined, responseMode: el<HTMLSelectElement>('response-mode').value as Slot['responseMode'], provider: el<HTMLSelectElement>('provider').value as Slot['provider'], model: el<HTMLInputElement>('model').value,
     ...(el<HTMLInputElement>('endpoint').value ? { endpoint: el<HTMLInputElement>('endpoint').value } : {}) };
   el<HTMLTextAreaElement>('slots').value = json(slots);
 }
@@ -87,7 +87,7 @@ function setDraft(value: Draft) {
   const selector = el<HTMLSelectElement>('document'); selector.replaceChildren(...Object.keys(value.sources).map(path => new Option(path, path))); selector.value = currentPath;
   el<HTMLTextAreaElement>('source').value = value.sources[currentPath];
   el<HTMLInputElement>('model').value = value.slots.primary.model;
-  el<HTMLInputElement>('structured-outputs').checked = value.slots.primary.structuredOutputs ?? false;
+  el<HTMLSelectElement>('response-mode').value = value.slots.primary.responseMode ?? (value.slots.primary.structuredOutputs ? 'schema' : 'json');
   el<HTMLSelectElement>('provider').value = value.slots.primary.provider;
   el<HTMLTextAreaElement>('slots').value = json(value.slots);
   el('scenario-title').textContent = currentPath.replace('.json', '').replaceAll('-', ' ');
@@ -232,7 +232,7 @@ function render() {
   el('run-label').hidden = !fixtureMarket;
   el('run-label').textContent = 'Scripted developer sample';
   el('economy-run-kind').textContent = `${fixtureMarket ? 'Scripted developer fixture · no live-model behavior' : snapshot.mode === 'playback' ? 'Recorded model run' : 'Live model run'} · ${[...new Set(models)].join(', ')}`;
-  const failures = events.filter(e => e.type === 'model-error' || e.type === 'model-timeout').length;
+  const failures = events.filter(e => e.type === 'model-error' || e.type === 'model-timeout' || e.type === 'memory-retrieval' && ['failed', 'timeout'].includes(String((e.data as JsonObject).phase))).length;
   if (shownReport) el('economy-run-kind').textContent += ` · ${events.filter(e => e.type === 'request').length} requests · ${failures} provider/output failures or timeouts`;
   el('economy-save-status').textContent = snapshot.savedRecording ? `Saved: ${snapshot.savedRecording}. ${snapshot.saveNote ?? 'Recording is ready to open.'}` : snapshot.mode === 'playback' ? 'Verified recorded evidence. Scrub snapshots; no model calls.' : 'Run saves automatically at its configured limit. Save manually before closing the server.';
   el<HTMLButtonElement>('economy-open-saved').disabled = !snapshot.savedRecording || snapshot.busy || !!snapshot.automatic;
@@ -314,7 +314,7 @@ bind('turn-play', async () => {
   render();
 });
 for (const button of document.querySelectorAll<HTMLButtonElement>('[data-page]')) button.onclick = () => showPage(button.dataset.page!);
-el('structured-outputs').onchange = syncSlot;
+el('response-mode').onchange = syncSlot;
 el('close-evidence').onclick = () => el<HTMLDialogElement>('evidence-dialog').close();
 bind('shop-finish-work', async () => { await api('advance', {}); notify('Advanced the workshop one turn without asking for new decisions.'); });
 bind('add-order', () => {

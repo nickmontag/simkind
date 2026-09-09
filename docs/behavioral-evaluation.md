@@ -5,6 +5,21 @@ failed negotiation, changed goal, or unreconciled friendship is not automaticall
 bug. Test whether a character can perceive, remember, choose, and act consistently
 within its authorized perspective; report what it actually chooses separately.
 
+## Current execution controls
+
+The example evaluation config now caps each character at eight opportunities and
+reserves 24 primary attempts inside the existing 28-request ceiling. The remaining
+four requests fund maintenance and corrections. This intentionally preserves the
+paid ceiling; longer or maintenance-heavy comparisons should explicitly allocate
+more auxiliary allowance. It does not guarantee eight successful decisions. Read
+`status.decisionBudget` alongside errors and host receipts. Earlier September 9
+results below used the old shared budget and are not retroactively improved.
+
+The harness accepts `--response-mode schema|json|text` (default schema). Select JSON
+for a backend that rejects the full schema. Local validation remains identical.
+See [authoring budgets](building-simulations.md#comparable-decision-opportunities)
+and [provider configuration](providers-and-spatial.md#providers).
+
 ## September 9 evaluation protocol
 
 This bounded local evaluation uses the current shared runner and host implementations.
@@ -248,3 +263,44 @@ The next priorities supported by this evidence are:
    decision boundaries; preserve partial results when they do not.
 4. Expand repeated social, competitive, and cooperative trials before claiming broad
    behavioral quality. More character machinery is not justified by these samples.
+
+
+## Targeted memory follow-up: September 9
+
+A same-parent pilot compared legacy and hybrid memory over a completed common
+prefix of seven turns for Aya and Mira, using the prior 1,009-turn controlled
+archive (mostly scripted history with live consolidation). Both conditions used
+17 chat requests and completed 14 decisions. Legacy Mira repeated her earlier
+missing-gasket claim, then explicitly recalled the original after Aya supplied a
+cue. Hybrid supplied the original immediately and Mira corrected her earlier
+answer. Both handled the changed and withdrawn supplier proposal without treating
+speech as a payment.
+
+Real-embedding retrieval probes selected an applicable original source in 1/11
+legacy cases, 9/11 new lexical cases and 9/11 fully indexed hybrid cases. These
+are source-selection diagnostics, not answer accuracy: summaries and prior answers
+can contain the facts. Lexical also supplied the original on the actual opening
+context. This does not justify enabling embeddings by default. Hybrid sometimes
+crowded distinct facts out with repeated answer records. No probe returned the
+other actor's private code; voluntary disclosure by a character is a separate
+behavioral question.
+
+The unequal tails are excluded from the matched comparison: legacy completed
+19 decisions over ten steps; hybrid completed 14 before the conservative dollar
+guard interrupted step eight. Five compactions completed across the full fresh
+runs. Both archives restored host and character state exactly; hybrid's transient
+context-failure diagnostic cleared on restore. Maximum decision input was 31,525
+provider-reported tokens. JSON-mode format corrections and an incorrect intention
+ID in `supersedes` remained real errors; the latter field accepts interpretation
+memory IDs.
+
+Total reported charges were $0.11211447. An initial evaluation-harness fail-fast
+bug allowed forty rate-limit failures, followed by one failed diagnostic. All
+41 missing-receipt attempts retained worst-case cost reservations; the total
+conservative accounting was $1.76023220, below the authorized $2. Failed pilot
+runs are not behavioral evidence. Budget denial in the test adapter also looked
+like a network failure, which needs clearer evaluation diagnostics. No production
+code changed during the measured runs. Broader autonomous, physical-host and
+repeated policy comparisons remain open.
+
+The long-memory evaluation stops on the first provider failure, including HTTP 429 and errors carried inside HTTP 200 responses. Already dispatched calls may finish; it does not automatically retry or switch providers. Local call-ceiling denials are reported as `call-budget`, separately from provider failures, and occur before provider dispatch. Retained archives and receipts remain the basis for accounting; a failed request without a receipt is not evidence of zero cost.

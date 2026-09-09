@@ -31,25 +31,28 @@ both original experience and interpreted episodes, always within that character'
 knowledge cutoff. A private message delivered to someone else is unavailable.
 Branching copies the frozen archive; sibling futures never enter that copy.
 
-Automatic retrieval uses newly changed textual observations and changes to explicit
-intentions as cues. New dialogue/narrative cues take priority over verbose state
-snapshots. Unchanged goals and a new summary version alone do not trigger another
-search. Selections are cached within the frozen opportunity.
+New runners use the [situational memory policy](memory-policies.md). It searches
+current events and circumstances, unchanged intentions and model-maintained
+concerns through separate bounded cues, then ranks original and interpreted
+memories together. Configure an embedding adapter for independent semantic
+candidates and hybrid retrieval. Without one, the mode is explicitly lexical.
 
-Automatic reminders contain at most three direct matches, with original evidence
-considered before interpreted episodes. Their total allowance is
-`min(maxRecallChars, maxAutomaticRecallChars ?? 6000)`. This is a ceiling, not a
-fill target. Automatic selection does not expand an episode into its whole citation
-tree; source IDs remain attached. `simkind.recall` retains the full explicit recall
-allowance and expands accessible cited originals as before. Set the optional
-`maxAutomaticRecallChars` to zero to disable automatic reminders while keeping
-explicit recall, current state, recent history, summaries, and goals intact.
+Automatic selection is bounded by
+`min(maxRecallChars, maxAutomaticRecallChars ?? 6000)`. Explicit recall retains
+its separate allowance and source expansion. Set `maxAutomaticRecallChars` to
+zero to disable automatic reminders without disabling deliberate recall.
 
-This policy can supply less useful older context automatically, requiring the
-character to request recall. Search remains lexical and bounded; it does not
-promise semantic relevance or complete recall. Original evidence is not deleted.
-Old episodes remain historical interpretations and are not automatically rewritten
-when a claim changes.
+The core enforces original evidence, actor visibility, historical cutoffs, and
+context capacity independently of the selected policy. Retrieval is asynchronous,
+shares the original opportunity budget, and records the selected evidence and
+actual model context. The policy guide describes cancellation, usage, index
+coverage, current limitations and custom adapters.
+
+Old checkpoints without a memory-policy identity retain the earlier selective
+lexical policy: at most three direct reminders from changed textual observations
+or changed intentions, without automatic citation expansion. New summary versions
+or unchanged intentions alone do not trigger that legacy policy. Original
+evidence remains searchable under either policy.
 
 ## Configuration
 

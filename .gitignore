@@ -10,7 +10,7 @@ coverage/
 # Local agent notes
 .claude/
 
-# Private planning, research, and temporary artifacts
+# Private planning, unvetted documentation, research, and temporary artifacts
 /.internal/
 
 # Independent reader bytecode

@@ -29,7 +29,7 @@ New host versions preserve exact readers for earlier supported recordings.
 
 ## Engineering evidence
 
-The latest completed implementation checkpoint passed **243 tests across 24 files**,
+The latest completed implementation checkpoint passed **261 tests across 25 files**,
 generated-artifact checks, build, and typechecking. External tarball consumer checks,
 three deterministic run reproductions, public-file checks, and documentation links
 also passed. Local results do not imply that remote CI has run.
@@ -78,15 +78,23 @@ balanced. The final archive restored exactly without model calls.
 A controlled reconstruction of two earlier post-compaction contexts reduced total
 characters by 35.4% and 28.8%, keeping protected recent history, observations, goals,
 and summary identical. This measures redundant payload reduction, not equal semantic
-retrieval quality or a measured whole-run cost saving. Automatic recall now returns
-at most three direct records within a default 6,000-character cap; explicit recall
-can still retrieve originals with its larger allowance.
+retrieval quality or a measured whole-run cost saving. That earlier selective policy returned
+at most three direct records within a default 6,000-character cap. New runners now
+use a [replaceable situational policy](memory-policies.md), with recurring concerns
+and optional hybrid embedding retrieval. The payload reductions above do not
+measure this new policy. Explicit recall retains its larger allowance.
 
 Compactions still sometimes retain stale balances, contradictions, or mistaken
 interpretations. Structured output and clearer instructions do not guarantee factual
 consistency. The [memory guide](long-run-memory.md) describes these tradeoffs; the
 [behavioral evaluation plan](behavioral-evaluation.md) separates structural correctness,
 source retrieval, interpretation, and character choice.
+
+The latest situational-policy procedural checks completed 1,000 turns per character
+on both reference hosts with exact restore, preserved intentions, and zero recorded
+model errors. Maximum serialized contexts were 21,877 and 25,149 characters. These
+checks used lexical retrieval and scripted decisions. Semantic-channel unit tests
+use scripted vectors; a live embedding/behavior comparison remains open.
 
 The original three-call GLM transport sample and earlier test counts are historical
 checkpoints. They are not the current reliability sample. Remote/local compatible
@@ -134,3 +142,12 @@ npm publish simkind-0.2.0-alpha.1.tgz --tag alpha --access public
 
 The commands document the release procedure; their presence does not mean publication
 has occurred. Package metadata defaults to the `alpha` tag.
+
+
+Provider and execution-budget follow-through: 272 tests pass across 26 files.
+Explicit schema/JSON/text transports share local validation. Optional per-actor
+opportunity reservations preserve the hard total request ceiling and survive restore.
+Six scripted eight-turn comparisons each completed eight decisions per actor with
+27/28 requests, zero errors, and resumable archives. Package-consumer and exact run
+fixture checks passed. This is mechanical evidence; no new paid provider or embedding
+quality comparison was performed for these changes.

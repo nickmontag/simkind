@@ -29,6 +29,26 @@ definition of a relationship.
 
 None of these interpretations needs to be predetermined by the engine.
 
+## Give characters continuity without scripting their response
+
+Enable `simkind.context` and `simkind.continuity` for long sessions. New runners
+use the [situational memory policy](memory-policies.md): current events, observations,
+intentions and model-maintained concerns can retrieve older experiences even when
+nobody explicitly asks a question. A concern is a fallible interpretation, not a
+host obligation, alarm, goal priority or relationship score.
+
+Describe who is present and deliver changes that the character can perceive.
+If time matters, expose an appropriate clock or deadline observation. Preserve
+speaker identity, literal dialogue, uncertainty and source times. The host should
+not tell the model which memory to retrieve or how to feel about it. The same
+interfaces support social characters and task-oriented agents.
+
+Keep storage and embedding connections in local application configuration.
+Portable scenario files describe the situation and character capabilities;
+they should not depend on one vector database or contain provider credentials.
+Evaluate whether the character uses relevant experiences in later choices, in
+addition to whether it can answer an explicit recall question.
+
 ## Separate state, new events, and history
 
 Implement optional `CharacterHost.perceive(actor)` to return:
@@ -210,3 +230,35 @@ Evaluate mechanics separately from behavior:
 settlement implementations. Add `--legacy` for the earlier snapshot-based baseline.
 `npm run evaluate:memory` provides opt-in live memory and economy phases with an
 explicit call ceiling; see [the harness instructions](long-run-memory.md#verification).
+
+## Comparable decision opportunities
+
+For bounded comparisons, set `limits.maxDecisionOpportunitiesPerActor` alongside
+`maxRequests`. For example, three characters with a target of 10 and `maxRequests: 50`
+reserve 30 primary decision attempts and leave at most 20 chat requests for
+consolidation, explicit-recall continuations and format corrections. The hard total
+ceiling remains 50. A configuration that cannot fund the cast's target fails launch.
+Without the optional target, existing request-budget behavior is unchanged.
+
+This is an admission cap and a reservation, not a promise of successful decisions.
+The host must offer enough opportunities; asynchronous work, host completion, step
+limits, provider failures and protected-context capacity can prevent the target.
+A primary attempt can choose dialogue, a world action, an internal operation, or idle.
+Routine consolidation is skipped once auxiliary allowance is exhausted; originals
+and protected recent history are never discarded to make a decision fit. If that
+protected context is too large, the existing capacity failure remains explicit.
+
+`status().decisionBudget` reports per-character `opportunities`, `primaryRequests`,
+`completedDecisions`, and `budgetExhaustions`. Primary requests are reservations and
+may fail during retrieval before reaching a model. Completed decisions mean parsed
+terminal decisions (including idle), not successful host effects; consult action
+receipts for actual outcomes. Auxiliary budget/internal-call/deadline exhaustion
+ends that opportunity and increments `budgetExhaustions`, without aborting the whole
+comparison as a context failure. Other provider and retrieval failures remain in
+recorded events. Counters survive exact restore and reset on an explicit branch.
+
+The reservation limits chat request dispatch, not monetary cost or embedding calls.
+Embedding attempts and receipts are reported separately by memory retrieval; its
+batch limits, deadline and shared concurrency still apply. Report admitted and
+completed decisions, maintenance/recall/correction calls, tokens, cost and elapsed
+time separately. Equal host ticks alone are not comparable decision exposure.

@@ -24,7 +24,23 @@ const compatible = chatCompletionsConnection({
 });
 ```
 
-All adapters request `json_object` output and pass the same character context.
+The default transport requests `json_object`. Select `responseMode: 'schema'`,
+`'json'`, or `'text'` explicitly on any adapter. Schema mode sends the full strict
+response schema; JSON mode sends `json_object`; text mode omits `response_format`
+and instructs the model to return JSON. Every mode includes the same tool schemas
+in character context, including during consolidation. Text mode does not relax
+local JSON or argument validation. No output-token limit is imposed by default.
+
+Use JSON mode when a backend rejects a complex schema (as the evaluated Gemini
+backend did). Use text mode when it does not support `response_format`. This is
+an explicit configuration choice, with no automatic paid retry or silent downgrade.
+The legacy `structuredOutputs` boolean remains supported; conflicting settings fail
+before dispatch. An explicitly selected mode is retained in
+checkpoints and must match on exact restore.
+
+The CLI accepts `--response-mode json` or `SIMKIND_RESPONSE_MODE=json`; connection
+slot JSON accepts `responseMode`. The playground exposes a Response transport selector.
+`--structured-outputs` remains a legacy schema-mode alias.
 They never silently replace models, retry an action, or downgrade unsupported
 capabilities. Every result still passes the runner's tool and argument checks.
 Cancellation forwards the AbortSignal; a provider ignoring abort retains its

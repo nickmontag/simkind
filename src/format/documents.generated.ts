@@ -325,6 +325,10 @@ export interface InstanceOverride {
  * via the `definition` "Limits".
  */
 export interface Limits {
+  /**
+   * Optional per-actor admission cap that reserves one primary decision request per opportunity within maxRequests. Remaining requests fund maintenance, recall and corrections.
+   */
+  maxDecisionOpportunitiesPerActor?: number;
   maxRequests: number;
   maxInFlight: number;
   maxSteps: number;
@@ -499,7 +503,15 @@ export interface RunEvent {
   sequence: number;
   time: TimePoint;
   type:
-    'request' | 'model-result' | 'model-error' | 'model-timeout' | 'proposal' | 'action' | 'observation' | 'stopped';
+    | 'request'
+    | 'model-result'
+    | 'model-error'
+    | 'model-timeout'
+    | 'memory-retrieval'
+    | 'proposal'
+    | 'action'
+    | 'observation'
+    | 'stopped';
   data: JsonValue;
 }
 
@@ -907,6 +919,12 @@ export const documentSchema = {
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "maxDecisionOpportunitiesPerActor": {
+          "description": "Optional per-actor admission cap that reserves one primary decision request per opportunity within maxRequests. Remaining requests fund maintenance, recall and corrections.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
         "maxRequests": {
           "type": "integer",
           "minimum": 0,
@@ -1232,6 +1250,7 @@ export const documentSchema = {
             "model-result",
             "model-error",
             "model-timeout",
+            "memory-retrieval",
             "proposal",
             "action",
             "observation",

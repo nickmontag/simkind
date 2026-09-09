@@ -1,4 +1,5 @@
 import { canonicalJson, validateDocument, validateRecord, validateTime, type JsonValue, type RunBundle, type RunEvent } from '../format/index.js';
+import type { MemoryPolicyIdentity } from './memory-policy.js';
 import { ActionLedger } from './actions.js';
 import type { PreparedLaunch } from './contracts.js';
 import type { RunnerStorage } from './storage.js';
@@ -10,10 +11,11 @@ export interface RunnerCheckpoint {
   launch: PreparedLaunch;
   hostState: JsonValue;
   events: RunEvent[];
-  scheduler: { steps: number; requests: number; requestSequence: number; nextActor: number; paused: boolean; memoryTurnOffset?: number };
+  scheduler: { steps: number; requests: number; requestSequence: number; nextActor: number; paused: boolean; memoryTurnOffset?: number; decisionBudget?: Record<string, { opportunities: number; primaryRequests: number; completedDecisions: number; budgetExhaustions: number }> };
   archive?: { eventCount: number; revision?: number; actors: Record<string, { evidence: number; episodes: number; version: number }> };
   parent?: RunBundle['parent'];
-  modelCapabilities?: Record<string, { text: boolean; json: boolean; jsonSchema?: boolean }>;
+  memoryPolicy?: MemoryPolicyIdentity;
+  modelCapabilities?: Record<string, { text: boolean; json: boolean; jsonSchema?: boolean; responseMode?: 'schema' | 'json' | 'text' }>;
 }
 
 /** Validates persisted evidence before a host restore hook can run. */
@@ -21,8 +23,20 @@ export function validateCheckpoint(value: RunnerCheckpoint): void {
   canonicalJson(value);
   if (!['simkind.checkpoint/1', 'simkind.checkpoint/2'].includes(value.version) || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value.id)) throw new Error('Unsupported checkpoint.');
   if (value.version === 'simkind.checkpoint/2' && (!value.archive || value.events.length || !Number.isSafeInteger(value.archive.eventCount) || value.archive.eventCount < 0)) throw new Error('Invalid archived checkpoint.');
+  if (value.memoryPolicy && (typeof value.memoryPolicy.id !== 'string' || typeof value.memoryPolicy.version !== 'string' || !value.memoryPolicy.settings || Array.isArray(value.memoryPolicy.settings) || typeof value.memoryPolicy.settings !== 'object' || canonicalJson(value.memoryPolicy).length > 4096)) throw new Error('Invalid memory policy identity.');
   const { scheduler, launch } = value;
   if (scheduler.memoryTurnOffset !== undefined && (!Number.isSafeInteger(scheduler.memoryTurnOffset) || scheduler.memoryTurnOffset < 0)) throw new Error('Invalid lifetime turn offset.');
+  const target = launch.config.limits.maxDecisionOpportunitiesPerActor;
+  if (target !== undefined) {
+    const budget = scheduler.decisionBudget;
+    if (!budget || canonicalJson(Object.keys(budget).sort()) !== canonicalJson(Object.keys(launch.states).sort())) throw new Error('Missing decision budget counters.');
+    let primary = 0;
+    for (const counts of Object.values(budget)) {
+      if (!counts || !Number.isSafeInteger(counts.opportunities) || !Number.isSafeInteger(counts.primaryRequests) || (!Number.isSafeInteger(counts.completedDecisions) || counts.completedDecisions < 0 || counts.completedDecisions > counts.primaryRequests) || (!Number.isSafeInteger(counts.budgetExhaustions) || counts.budgetExhaustions < 0 || counts.budgetExhaustions > counts.opportunities) || counts.primaryRequests < 0 || counts.opportunities < counts.primaryRequests || counts.opportunities > target) throw new Error('Invalid decision budget counters.');
+      primary += counts.primaryRequests;
+    }
+    if (primary > scheduler.requests || scheduler.requests - primary > launch.config.limits.maxRequests - target * Object.keys(budget).length) throw new Error('Decision budget exceeds its reservation.');
+  } else if (scheduler.decisionBudget) throw new Error('Unexpected decision budget counters.');
   if (value.archive) {
     if (value.archive.revision !== undefined && (!Number.isSafeInteger(value.archive.revision) || value.archive.revision < 0)) throw new Error('Invalid archive revision.');
     for (const [actor, counts] of Object.entries(value.archive.actors)) {

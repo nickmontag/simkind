@@ -51,6 +51,7 @@ describe('optional continuity', () => {
     const before = structuredClone(state);
     expect(() => reviseState(state, { expectedRevision: 0, intentions: [] }, 'run:x', 'memory:x')).toThrow('Stale');
     const observation = state.context.memories!.find(m => m.source.kind === 'observation')!;
+    expect(() => reviseState(state, { expectedRevision: state.revision, interpretation: 'Wrong', supersedes: ['intention:unavailable'] }, 'run:x', 'memory:x')).toThrow('supplied interpretation-memory IDs');
     expect(() => reviseState(state, { expectedRevision: state.revision, interpretation: 'Wrong', supersedes: [observation.id] }, 'run:x', 'memory:x')).toThrow('Only interpretations');
     expect(state).toEqual(before);
   });

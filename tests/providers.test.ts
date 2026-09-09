@@ -62,3 +62,22 @@ it('retains cache, reasoning and provider routing evidence without recording cre
   expect(result).toMatchObject({ usage: { inputTokens: 100, outputTokens: 20, cachedInputTokens: 70, reasoningTokens: 12, cost: 0.001 }, telemetry: { provider: 'Example Provider', generationId: 'gen-example', finishReason: 'stop' } });
   expect(JSON.stringify(result)).not.toContain('private-test-credential');
 });
+
+it.each(['schema', 'json', 'text'] as const)('uses explicit %s transport for decisions and maintenance without retries', async responseMode => {
+  const request = vi.fn(async () => new Response(JSON.stringify({ choices: [{ message: { content: '{"toolId":null,"arguments":{}}' } }] })));
+  vi.stubGlobal('fetch', request);
+  const provider = chatCompletionsConnection({ provider: 'test', model: 'explicit', endpoint: 'https://provider.example/chat', responseMode });
+  for (const purpose of [undefined, 'consolidation'] as const) await provider.fulfill({ ...context, purpose }, new AbortController().signal);
+  for (const call of request.mock.calls) {
+    const body = JSON.parse((call as unknown as [unknown, RequestInit])[1].body as string);
+    expect(body.response_format?.type).toBe(responseMode === 'schema' ? 'json_schema' : responseMode === 'json' ? 'json_object' : undefined);
+    expect(body.messages[1].content).toContain('tools');
+    expect(body).not.toHaveProperty('max_tokens');
+  }
+  expect(provider.capabilities.responseMode).toBe(responseMode);
+  expect(request).toHaveBeenCalledTimes(2);
+});
+it('rejects conflicting or unknown transport choices before calling the provider', () => {
+  expect(() => chatCompletionsConnection({ provider: 'test', model: 'explicit', endpoint: 'https://provider.example/chat', responseMode: 'json', structuredOutputs: true })).toThrow('Conflicting');
+  expect(() => chatCompletionsConnection({ provider: 'test', model: 'explicit', endpoint: 'https://provider.example/chat', responseMode: 'invalid' as any })).toThrow('Invalid response mode');
+});

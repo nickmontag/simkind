@@ -5,6 +5,7 @@ import { resolve, dirname } from 'node:path';
 import { loadRun, saveRun, isArchivedRun, openArchivedRun, SqliteRunnerStorage, recoverArchivedCheckpoint, runDurably } from 'simkind/node';
 import { CharacterRunner, replayCheckpoint, type ModelConnection } from 'simkind/runner';
 import { openRouterConnection, ollamaConnection } from 'simkind/providers';
+import { memoryPolicyFromEnvironment } from './memory-options.js';
 import { installedHost } from './hosts/registry.js';
 const { values } = parseArgs({ options: { input: { type: 'string' }, output: { type: 'string' }, branch: { type: 'boolean' }, replay: { type: 'boolean' }, fixture: { type: 'boolean' }, recover: { type: 'boolean' } } });
 if (!values.input) throw new Error('Supply --input with a saved run directory or an active SQLite file with --recover.');
@@ -27,8 +28,8 @@ else {
   for (const effective of Object.values(checkpoint.launch.effectiveConfig)) {
     const model = effective.model;
     if (values.fixture && model.provider === 'fixture') connections[effective.modelSlot] = { public: model, capabilities: { text: true, json: true }, fulfill: async context => ({ output: context.purpose === 'consolidation' ? { toolId: 'simkind.compact', arguments: { summary: 'Deterministic fixture memory.', episodes: [] } } : { toolId: null, arguments: {} } }) };
-    else if (model.provider === 'openrouter') connections[effective.modelSlot] = openRouterConnection(env.OPENROUTER_API_KEY ?? '', model.model, model.settings, { structuredOutputs: checkpoint.modelCapabilities?.[effective.modelSlot]?.jsonSchema });
-    else if (model.provider === 'ollama') connections[effective.modelSlot] = ollamaConnection(model.model, env.OLLAMA_ENDPOINT || undefined, model.settings);
+    else if (model.provider === 'openrouter') connections[effective.modelSlot] = openRouterConnection(env.OPENROUTER_API_KEY ?? '', model.model, model.settings, { responseMode: checkpoint.modelCapabilities?.[effective.modelSlot]?.responseMode, structuredOutputs: checkpoint.modelCapabilities?.[effective.modelSlot]?.jsonSchema });
+    else if (model.provider === 'ollama') connections[effective.modelSlot] = ollamaConnection(model.model, env.OLLAMA_ENDPOINT || undefined, model.settings, { responseMode: checkpoint.modelCapabilities?.[effective.modelSlot]?.responseMode });
     else throw new Error('Use the embedding API to supply this exact provider connection.');
   }
   const directory = destination;
@@ -41,7 +42,7 @@ else {
   }
   let runner: CharacterRunner | undefined;
   try {
-  runner = CharacterRunner.restore(checkpoint, host, connections, values.branch ? `run:${randomUUID()}` : undefined, { storage, recordTimings: !values.fixture });
+  runner = CharacterRunner.restore(checkpoint, host, connections, values.branch ? `run:${randomUUID()}` : undefined, { storage, recordTimings: !values.fixture, memoryPolicy: !values.fixture && checkpoint.memoryPolicy ? memoryPolicyFromEnvironment(env, checkpoint.memoryPolicy) : undefined });
   runner.pauseDispatch(false);
   if (storage) {
     const controller = new AbortController(), interrupt = () => controller.abort();

@@ -74,6 +74,14 @@ consolidation, and original-evidence recall. The host still owns action effects
 and explicit game rules; characters own interpretations and goals. These portable
 facilities complement the lower-level adapters above.
 
+The [memory-policy boundary](memory-policies.md) separates core perspective and
+archive guarantees from replaceable recall and consolidation strategy. New context
+runners use situational cues and model-maintained concerns, with optional hybrid
+embedding search. Policies receive a frozen actor-local view and return references;
+the core validates and materializes the evidence. Retrieval runs asynchronously
+within the opportunity, and its selected context is recorded before model dispatch.
+Storage and embedding services remain adapters, with no mandatory graph or psychology.
+
 Turn-based hosts can budget maintenance separately from decision work and use
 SQLite checkpoints with `runDurably`. Shared deadlines remain the default for
 realtime embeddings. See [Building simulations](building-simulations.md) and

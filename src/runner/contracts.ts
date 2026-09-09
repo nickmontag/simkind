@@ -5,6 +5,7 @@ import type {
 } from '../format/index.js';
 import type { MemoryEvidence } from './evidence.js';
 import type { RunnerStorage } from './storage.js';
+import type { WorkingConcern } from './memory-policy.js';
 import type { HostPerception } from './perception.js';
 
 export interface ResolvedBundle {
@@ -107,7 +108,7 @@ export interface HostRegistration {
 export interface DecisionContext {
   purpose?: 'decision' | 'consolidation' | 'recall' | 'correction';
   recent?: NonNullable<CharacterState['context']['memories']>;
-  memory?: { version: number; summary: string; evidenceThrough: number; authority?: 'interpretation' };
+  memory?: { version: number; summary: string; evidenceThrough: number; temporalScope?: string; authority?: 'interpretation'; concerns?: WorkingConcern[] };
   memoryEvidence?: MemoryEvidence[];
   feedback?: string;
   contextSize?: { characters: number; sections: Record<string, number> };
@@ -141,6 +142,6 @@ export interface ProviderResult {
 export interface ModelConnection {
   /** Only this explicit allowlisted metadata enters portable recordings. */
   public: PublicModel;
-  capabilities: { text: boolean; json: boolean; jsonSchema?: boolean };
+  capabilities: { text: boolean; json: boolean; jsonSchema?: boolean; responseMode?: 'schema' | 'json' | 'text' };
   fulfill(context: DecisionContext, signal: AbortSignal): Promise<ProviderResult>;
 }

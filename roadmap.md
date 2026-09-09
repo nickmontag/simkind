@@ -181,7 +181,7 @@ repeatable evidence and contributor readiness, rather than more core features.
 - [x] Field-level correction feedback, host-local semantic tool guidance,
   compaction fidelity instructions, and selective automatic recall; originals
   remain available through explicit recall.
-- [x] Latest engineering checkpoint: 243 tests; two 1,000-turn procedural soaks;
+- [x] Latest engineering checkpoint: 272 tests; two 1,000-turn procedural soaks;
   package consumer, deterministic fixture, public-file, and exact-restore checks.
 - [x] Repeated friendship, cooperative, and competitive live trials, reported
   without rewarding a prescribed ending; three trials stopped at their maintenance/call budgets.
@@ -200,5 +200,35 @@ $0.34109 reported usage. The GLM controlled history reached 1,009 turns, with 14
 answers, one retrieval miss, and one network-lost answer out of 16. Gemini's full
 structured-schema pipeline was incompatible; an explicitly narrower common-context
 reading check passed 8/8 in JSON mode. Cross-model end-to-end memory comparison remains
-open. Retrieval relevance, provider schema compatibility, and comparable decision
-budgets are the next evidence-backed priorities.
+open. The following implementations address retrieval relevance, explicit provider
+transport and comparable decision budgets; matched live evidence remains the next priority.
+
+
+September 9 memory architecture follow-through:
+
+- [x] Scoped, replaceable memory policy with core-owned visibility, cutoffs and source validation.
+- [x] Situational lexical recall, recurring concerns, optional hybrid embedding adapter and persistent derived index.
+- [x] Asynchronous retrieval lifecycle, recorded context selection and policy-pinned restoration.
+- [x] Authoring and integration documentation for character continuity without a prescribed psychology.
+- [ ] Matched-budget live comparison of legacy/lexical/hybrid and diagnostic relevant-evidence conditions.
+- [ ] Broader long-horizon character behavior evidence; no comparative SOTA claim yet.
+
+See [memory policies](docs/memory-policies.md) for implemented boundaries and limits.
+
+September 9 provider and budget follow-through:
+
+- [x] Explicit schema/JSON/text transport in providers, CLI and playground; strict local validation and checkpoint matching.
+- [x] Optional per-character opportunity reservations within the total request ceiling; distinct completed-decision and exhaustion counters.
+- [x] Regression coverage for compaction, invalid-output retries, transport validation and budget restore/branch behavior.
+- [ ] New live cross-provider and matched-budget behavioral evidence.
+
+
+Targeted memory evidence: a seven-turn completed common prefix of legacy/hybrid
+live continuations produced 14 decisions and 17 chat requests per condition.
+The new policy recovered a previously missed original without a peer hint;
+real-embedding probes did not show an advantage over the new lexical default.
+Both host/character states restored exactly; transient failure status differed.
+Reported charges $0.1121, conservative accounting including failed pilot attempts
+$1.7603, within the $2 cap. See [behavioral evaluation](docs/behavioral-evaluation.md#targeted-memory-follow-up-september-9).
+Source diversity, historical concern cutoffs, clearer revision references and
+honest budget/failure diagnostics precede broader SOTA claims.

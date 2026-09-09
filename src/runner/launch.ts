@@ -51,6 +51,8 @@ export function prepareLaunch(
   if (scenario?.kind !== 'scenario' || config?.kind !== 'run-config') {
     return { ok: false, diagnostics: [diagnostic('referential', 'MISSING_ENTRY', '', 'Resolve a scenario and run-config before launch.')] };
   }
+  const target = config.limits.maxDecisionOpportunitiesPerActor;
+  if (target !== undefined && (!Number.isSafeInteger(target * scenario.cast.length) || target * scenario.cast.length > config.limits.maxRequests)) issue('INSUFFICIENT_DECISION_BUDGET', '/limits', 'maxRequests must cover the per-actor opportunity target for the whole cast.', config.id);
   const descriptor = registration.descriptor;
   for (const clock of descriptor.clocks) diagnostics.push(...validateRecord('Clock', clock));
   diagnostics.push(...validateRecord('Limits', descriptor.limits));
@@ -89,7 +91,8 @@ export function prepareLaunch(
     }
   }
   for (const [key, value] of Object.entries(config.limits)) {
-    if (value > descriptor.limits[key as keyof typeof config.limits]) issue('HOST_LIMIT_EXCEEDED', `/limits/${key}`, 'Choose a value within the installed host’s limit.', config.id);
+    const maximum = descriptor.limits[key as keyof typeof config.limits];
+    if (maximum !== undefined && value > maximum) issue('HOST_LIMIT_EXCEEDED', `/limits/${key}`, 'Choose a value within the installed host’s limit.', config.id);
   }
   const castIds = new Set(scenario.cast.map((member) => member.instanceId));
   for (const [pointer, assignments] of [['modelAssignments', config.modelAssignments], ['perInstance', config.perInstance ?? {}], ['recommendations/modelAssignments', scenario.recommendations?.modelAssignments ?? {}]] as const) {

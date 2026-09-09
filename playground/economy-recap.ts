@@ -31,9 +31,14 @@ export function economyRecap(events: readonly RunEvent[], report: EconomyReport,
   const round = visible.filter(e => e.time.value === report.tick);
   const proposals = new Map(visible.filter(e => e.type === 'proposal').map(e => [String(dataOf(e).id), dataOf(e)]));
   const outcomes = new Map(round.filter(e => e.type === 'action').map(e => [String(dataOf(e).actionId), e]));
-  const failures = round.filter(e => e.type === 'model-error' || e.type === 'model-timeout');
+  const failures = round.filter(e => e.type === 'model-error' || e.type === 'model-timeout' || e.type === 'memory-retrieval' && ['failed', 'timeout'].includes(String(dataOf(e).phase)));
   const activity = new Map<string, Note[]>();
   function add(actor: string, note: Note) { const notes = activity.get(actor) ?? []; notes.push(note); activity.set(actor, notes); }
+  for (const event of round.filter(e => e.type === 'memory-retrieval')) {
+    const data = dataOf(event);
+    if (data.phase === 'started' && options.live && !visible.some(e => e.type === 'memory-retrieval' && dataOf(e).requestId === data.requestId && dataOf(e).phase !== 'started')) add(String(data.actor), { tone: 'pending', sequence: event.sequence, text: 'Recalling relevant experiences…' });
+    if (data.phase === 'failed' || data.phase === 'timeout') add(String(data.actor), { tone: 'error', sequence: event.sequence, text: data.phase === 'timeout' ? 'Memory retrieval timed out before deciding.' : 'Memory retrieval failed before deciding.' });
+  }
   for (const request of visible.filter(e => e.type === 'request')) {
     const context = dataOf(request).context as JsonObject;
     if (!context) continue;

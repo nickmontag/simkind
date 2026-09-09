@@ -11,7 +11,7 @@ historical evidence, and private working notes.
 | Root `README.md`, `CONTRIBUTING.md`, and current guides in `docs/` | Current; users and contributors | Setup, supported contracts, limitations, reproducible workflows |
 | Root `roadmap.md` and `docs/design/` | Planned or draft; contributors | Durable direction, proposed contracts, rationale, open decisions, acceptance criteria |
 | `docs/archive/` | Historical or superseded; readers investigating past work | Dated evaluation reports or replaced designs with continuing reference value |
-| `.internal/` | Private and local; maintainers and agents | Working plans, task handoffs, research scratchpads, transcripts, temporary outputs |
+| `.internal/` | Private and local; maintainers and agents | Unvetted proposals, working plans, task handoffs, research scratchpads, transcripts, temporary outputs |
 
 Example and demo READMEs stay beside their code. They document how to run the
 example and its current limitations. Raw exploratory logs belong in `.internal/`.
@@ -45,7 +45,8 @@ from Git history.
 
 1. Explore locally in `.internal/` when notes are incomplete, personal, or tied
    to a particular agent session.
-2. Promote a proposal to `docs/design/` when it has a public purpose: explain
+2. Keep unvetted proposals in `.internal/planning/`, even if formatted as a finished
+   document. Promote a reviewed proposal to `docs/design/` when it has a public purpose: explain
    the problem, decisions, alternatives that matter, compatibility, unresolved
    questions, and acceptance criteria. Label it **draft design** and name its
    audience. Future examples and commands must not look already runnable.

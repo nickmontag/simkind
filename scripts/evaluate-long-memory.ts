@@ -31,16 +31,18 @@ const phase = values.phase!;
 if (!['memory', 'economy'].includes(phase)) throw new Error('Choose --phase memory or economy.');
 const responses: unknown[] = []; let lastTurn = 0;
 let transportFailure: string | undefined;
-let consecutiveTransportFailures = 0;
+let budgetDenied = false;
 async function real(context: DecisionContext, signal: AbortSignal) {
   if (transportFailure) throw new Error(transportFailure);
-  if (used >= limit) throw new Error('Evaluation reached its configured call ceiling.');
+  if (used >= limit) {
+    budgetDenied = true;
+    throw new Error('Evaluation reached its configured call ceiling; no provider request was sent.');
+  }
   const call = ++used, started = Date.now();
   writeFileSync(budgetPath, JSON.stringify({ used, limit, model, updated: new Date().toISOString() }));
   appendFileSync(out+'live-calls.jsonl', JSON.stringify({ event:'start',call,phase,turn:lastTurn,actor:context.instanceId,purpose:context.purpose??'decision',characters:JSON.stringify(context).length })+'\n');
   try {
     const result = await provider.fulfill(context,signal);
-    consecutiveTransportFailures = 0;
     const record = { event:'end',call,phase,turn:lastTurn,actor:context.instanceId,purpose:context.purpose??'decision',elapsedMs:Date.now()-started,usage:result.usage,output:result.output };
     appendFileSync(out+'live-calls.jsonl',JSON.stringify(record)+'\n');
     responses.push(record);
@@ -48,9 +50,7 @@ async function real(context: DecisionContext, signal: AbortSignal) {
     return result;
   } catch(error) {
     const status = (error as { diagnostic?: { httpStatus?: number } }).diagnostic?.httpStatus;
-    if ([400, 401, 403, 404].includes(status ?? 0) || ++consecutiveTransportFailures >= 3) {
-      transportFailure = status ? `Provider HTTP ${status}; stop this evaluation before more paid calls.` : 'Three consecutive transport failures; stop this evaluation.';
-    }
+    transportFailure = status ? `Provider HTTP ${status}; stop this evaluation before more paid calls.` : 'Provider failure; stop this evaluation before more paid calls.';
     appendFileSync(out+'live-calls.jsonl',JSON.stringify({ event:'error',call,phase,turn:lastTurn,actor:context.instanceId,elapsedMs:Date.now()-started,diagnostic:(error as any).diagnostic,message:(error as Error).message })+'\n');
     throw error;
   }
@@ -107,7 +107,7 @@ try {
   const recording='recording-'+id;
   if (!failure && runner.status().unresolvedActions) { runner.step(); await runner.settleDecisions(); }
   await runner.drainProviders();
-  const report = {phase,model,structuredOutputs:true,outputCap:null,turns:lastTurn,targetTurns:turns,completedHistory:lastTurn===turns,stopReason:failure?'failure':lastTurn<turns?'call-budget':'history-finished',globalCallsUsed:used,elapsedMs:Date.now()-start,maxContextCharacters:maxContext,errors,recording,status:runner.status(),
+  const report = {phase,model,structuredOutputs:true,outputCap:null,turns:lastTurn,targetTurns:turns,completedHistory:lastTurn===turns,stopReason:budgetDenied?'call-budget':failure?'failure':lastTurn<turns?'call-budget':'history-finished',globalCallsUsed:used,elapsedMs:Date.now()-start,maxContextCharacters:maxContext,errors,recording,status:runner.status(),
     ...(failure ? { failure: (failure as Error).message } : {}), responses:phase==='memory'?responses.filter((r:any)=>r.purpose!=='consolidation'):undefined,economy:phase==='economy'?economyReport(runner.inspect().host):undefined};
   // Analysis survives an export failure; the active database is retained as well.
   writeFileSync(out+phase+'-report.json',JSON.stringify(report,null,2));

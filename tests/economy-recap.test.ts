@@ -129,3 +129,15 @@ describe('economy round explanations', () => {
     expect(recap.people[1].changes).toBe('−1 food');
   });
 });
+
+it('shows retrieval failure even when no character-model request was issued', async () => {
+  const session = await setup(economyFixtureConnection);
+  try {
+    await session.step(); const snapshot = session.state();
+    const event: import('../src/format/index.js').RunEvent = { id: 'event:retrieval', runId: snapshot.events![0].runId, sequence: snapshot.events!.at(-1)!.sequence + 1,
+      type: 'memory-retrieval', time: { clockId: 'clock:simulation', value: snapshot.economy!.tick }, data: { requestId: 'request:retrieval', actor: 'simkin:ada', phase: 'timeout' } };
+    const recap = economyRecap([event], snapshot.economy!);
+    expect(recap.failures).toBe(1);
+    expect(recap.people[0].notes.some(note => note.text === 'Memory retrieval timed out before deciding.')).toBe(true);
+  } finally { session.dispose(); }
+});

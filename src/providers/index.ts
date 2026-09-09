@@ -2,7 +2,10 @@ import { validateRecord } from '../format/index.js';
 import type { ModelConnection } from '../runner/contracts.js';
 import { ProviderFailure } from '../runner/provider-error.js';
 
+export type ResponseMode = 'schema' | 'json' | 'text';
 export interface ChatConnectionOptions {
+  /** Explicit transport; every mode still requires strict JSON and local tool validation. */
+  responseMode?: ResponseMode;
   provider: string;
   model: string;
   /** Exact chat-completions URL, kept in the local connection, never in run artifacts. */
@@ -20,23 +23,26 @@ const consolidationInstruction = 'This is memory maintenance, not a world decisi
 /** Minimal JSON-text transport, shared by remote and locally hosted compatible models. */
 export function chatCompletionsConnection(options: ChatConnectionOptions): ModelConnection {
   const selected = structuredClone(options);
+  const mode = selected.responseMode ?? (selected.structuredOutputs ? 'schema' : 'json');
+  if (!['schema', 'json', 'text'].includes(mode)) throw new Error('Invalid response mode.');
+  if (selected.responseMode && selected.structuredOutputs !== undefined && selected.structuredOutputs !== (mode === 'schema')) throw new Error('Conflicting response mode and structuredOutputs.');
   const url = new URL(selected.endpoint);
   if (url.username || url.password || url.hash || !(url.protocol === 'https:' || url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname))) throw new Error('Use HTTPS or a loopback HTTP provider endpoint without URL credentials.');
   const publicModel = { provider: selected.provider, model: selected.model.trim(), settings: selected.settings ?? {} };
   if (!publicModel.model || !publicModel.provider.trim() || validateRecord('PublicModel', publicModel).length) throw new Error('An explicit provider, model, and valid settings are required.');
-  return { public: structuredClone(publicModel), capabilities: { text: true, json: true, jsonSchema: !!selected.structuredOutputs },
+  return { public: structuredClone(publicModel), capabilities: { text: true, json: true, jsonSchema: mode === 'schema', ...(selected.responseMode ? { responseMode: mode } : {}) },
     async fulfill(context, signal) {
       const response = await fetch(url, { method: 'POST', signal, redirect: 'error',
         headers: { 'Content-Type': 'application/json', ...(selected.apiKey ? { Authorization: `Bearer ${selected.apiKey}` } : {}) },
         body: JSON.stringify({ model: publicModel.model, temperature: publicModel.settings.temperature, max_tokens: publicModel.settings.maxOutputTokens,
-          ...(selected.requireParameters ? { provider: { require_parameters: true } } : {}), response_format: selected.structuredOutputs ? {
+          ...(selected.requireParameters ? { provider: { require_parameters: true } } : {}), response_format: mode === 'schema' ? {
             type: 'json_schema', json_schema: { name: 'simkind_decision', strict: true, schema: {
               type: 'object', additionalProperties: false, required: ['toolId', 'arguments'], properties: {
                 toolId: { enum: [...context.tools.map(tool => tool.id), null] },
                 arguments: { anyOf: [...context.tools.map(tool => tool.inputSchema), { type: 'object', additionalProperties: false, properties: {} }] },
               },
             } },
-          } : { type: 'json_object' },
+          } : mode === 'json' ? { type: 'json_object' } : undefined,
           messages: [{ role: 'system', content: `${instruction} ${context.purpose === 'consolidation' ? consolidationInstruction : decisionTiming}` }, { role: 'user', content: JSON.stringify(context) }] }),
       }).catch(() => { throw new ProviderFailure('NETWORK_ERROR'); });
       if (!response.ok) throw new ProviderFailure('HTTP_ERROR', { httpStatus: response.status });
@@ -54,10 +60,12 @@ export function chatCompletionsConnection(options: ChatConnectionOptions): Model
     },
   };
 }
-export function openRouterConnection(apiKey: string, model: string, settings: ModelConnection['public']['settings'] = {}, options: { structuredOutputs?: boolean } = {}): ModelConnection {
+export function openRouterConnection(apiKey: string, model: string, settings: ModelConnection['public']['settings'] = {}, options: { structuredOutputs?: boolean; responseMode?: ResponseMode } = {}): ModelConnection {
   if (!apiKey.trim() || !model.trim()) throw new Error('An explicit OpenRouter key and model ID are required.');
   return chatCompletionsConnection({ provider: 'openrouter', model, apiKey, settings, endpoint: 'https://openrouter.ai/api/v1/chat/completions', requireParameters: true, ...options });
 }
-export function ollamaConnection(model: string, endpoint = 'http://127.0.0.1:11434/v1/chat/completions', settings: ModelConnection['public']['settings'] = {}): ModelConnection {
-  return chatCompletionsConnection({ provider: 'ollama', model, endpoint, settings });
+export function ollamaConnection(model: string, endpoint = 'http://127.0.0.1:11434/v1/chat/completions', settings: ModelConnection['public']['settings'] = {}, options: { responseMode?: ResponseMode } = {}): ModelConnection {
+  return chatCompletionsConnection({ provider: 'ollama', model, endpoint, settings, ...options });
 }
+
+export { compatibleMemoryEmbeddings } from './embeddings.js';

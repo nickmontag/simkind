@@ -1,5 +1,6 @@
 import { continuityProfile, reviseTool, decisionReviseTool, reviseState, retainObservation, selectContinuityMemories, type StateEdit } from './continuity.js';
 import { CharacterMemory, contextProfile, compactTool, recallTool, ContextCapacityError, type ContextSettings, type MemoryCutoff, type ConsolidationBatch } from './long-memory.js';
+import { createSituationalMemoryPolicy, MemoryRetrievalFailure, type MemoryPolicy, type MemoryQuery } from './memory-policy.js';
 import { MemoryRunnerStorage, ScopedRunnerStorage, type RunnerStorage } from './storage.js';
 import { validateCheckpoint, ledgerFromEvents, type RunnerCheckpoint } from './checkpoint.js';
 import { ModelRuntime, type ModelRequest, type ModelCompletion } from '../model-runtime.js';
@@ -13,6 +14,7 @@ import type { CharacterHost, DecisionContext, HostIntervention, HostRegistration
 
 interface Request extends ModelRequest {
   actor: string;
+  primaryStarted?: boolean;
   context: DecisionContext;
   revision: number;
   deadline: number;
@@ -20,10 +22,11 @@ interface Request extends ModelRequest {
   startedAt?: number;
   controller: AbortController;
   finishedAt?: number;
-  memory?: { base: DecisionContext; cutoff: MemoryCutoff; turn: number; calls: number; batch?: ConsolidationBatch };
+  retrieving?: boolean;
+  memory?: { base: DecisionContext; cutoff: MemoryCutoff; turn: number; calls: number; batch?: ConsolidationBatch; retrievalDone?: boolean; query?: MemoryQuery };
 }
 
-export interface RunnerOptions { storage?: RunnerStorage; recordTimings?: boolean }
+export interface RunnerOptions { storage?: RunnerStorage; recordTimings?: boolean; memoryPolicy?: MemoryPolicy | 'legacy' }
 
 function json(value: unknown): JsonValue { return JSON.parse(JSON.stringify(value)) as JsonValue; }
 
@@ -36,12 +39,14 @@ export class CharacterRunner {
   private readonly pending = new Map<string, Request>();
   private readonly storage: RunnerStorage;
   private readonly memories = new Map<string, CharacterMemory>();
+  private readonly memoryPolicy?: MemoryPolicy;
   private readonly contextFailures = new Map<string, string>();
   private get eventStream() { return `events:${this.launch.runId}`; }
   private get eventCount() { return this.storage.count(this.eventStream); }
   private readonly operatorObservationIds = new Map<string, string>();
   private readonly inputValidators = new Map<string, ReturnType<typeof compileDataSchema>>();
   private readonly outputValidators = new Map<string, ReturnType<typeof compileDataSchema>>();
+  private decisionBudget?: Record<string, { opportunities: number; primaryRequests: number; completedDecisions: number; budgetExhaustions: number }>;
   private requestCount = 0;
   private requestSequence = 0;
   private steps = 0;
@@ -60,7 +65,16 @@ export class CharacterRunner {
     checkpoint?: RunnerCheckpoint,
     private readonly options: RunnerOptions = {},
   ) {
+    if (launch.config.limits.maxDecisionOpportunitiesPerActor !== undefined) this.decisionBudget = structuredClone(checkpoint?.scheduler.decisionBudget ?? Object.fromEntries(Object.keys(launch.states).map(actor => [actor, { opportunities: 0, primaryRequests: 0, completedDecisions: 0, budgetExhaustions: 0 }])));
     this.storage = options.storage ?? new MemoryRunnerStorage();
+    const selectedPolicy = options.memoryPolicy === 'legacy' || checkpoint && !checkpoint.memoryPolicy && options.memoryPolicy === undefined
+      ? undefined : options.memoryPolicy ?? createSituationalMemoryPolicy();
+    if (selectedPolicy && (typeof selectedPolicy.identity?.id !== 'string' || typeof selectedPolicy.identity.version !== 'string'
+      || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(selectedPolicy.identity.id) || !selectedPolicy.identity.version.length || selectedPolicy.identity.version.length > 128 || !object(selectedPolicy.identity.settings)
+      || canonicalJson(selectedPolicy.identity).length > 4096)) throw new Error('Invalid memory policy identity.');
+    if (checkpoint && canonicalJson(checkpoint.memoryPolicy ?? null) !== canonicalJson(selectedPolicy?.identity ?? null)) throw new Error('Checkpoint memory policy mismatch. Supply the original policy and adapters.');
+    this.memoryPolicy = selectedPolicy ? { identity: structuredClone(selectedPolicy.identity), retrieve: selectedPolicy.retrieve.bind(selectedPolicy),
+      consolidationInstruction: selectedPolicy.consolidationInstruction, shouldConsolidate: selectedPolicy.shouldConsolidate?.bind(selectedPolicy) } : undefined;
     const runtime = Object.values(launch.effectiveConfig).some(config => config.features[contextProfile.id]?.enabled) ? { storage: this.storage } : undefined;
     this.host = checkpoint ? registration.restore!(structuredClone(launch), structuredClone(checkpoint.hostState), runtime) : registration.create(structuredClone(launch), runtime);
     const ledgerStorage = new ScopedRunnerStorage(this.storage, `ledger:${launch.runId}:`);
@@ -77,7 +91,7 @@ export class CharacterRunner {
       this.parent = structuredClone(checkpoint.parent);
     }
     for (const [actor, effective] of Object.entries(launch.effectiveConfig)) if (effective.features[contextProfile.id]?.enabled) {
-      const memory = new CharacterMemory(this.storage, { ...contextProfile.defaults.config, ...effective.features[contextProfile.id].config } as ContextSettings);
+      const memory = new CharacterMemory(this.storage, { ...contextProfile.defaults.config, ...effective.features[contextProfile.id].config } as ContextSettings, this.memoryPolicy);
       memory.initialise(launch.states[actor]); this.memories.set(actor, memory);
     }
     for (const tool of registration.descriptor.toolCatalog.tools) {
@@ -89,6 +103,8 @@ export class CharacterRunner {
       this.activeProviders++;
       try {
         const slot = launch.effectiveConfig[request.actor].modelSlot;
+        if (this.needsRetrieval(request)) await this.retrieveMemory(request);
+        if (request.controller.signal.aborted || !this.pending.has(request.id)) throw new Error('Request expired.');
         // Providers get their own permitted context copy and no host/operator state.
         return await connections[slot].fulfill(structuredClone(request.context), request.controller.signal);
       } finally { request.finishedAt = Date.now(); this.activeProviders--; }
@@ -137,8 +153,14 @@ export class CharacterRunner {
       if (branchRunId === checkpoint.launch.runId) throw new Error('A branch requires a new run ID.');
       copy.events = [];
       copy.scheduler.memoryTurnOffset = (checkpoint.scheduler.memoryTurnOffset ?? 0) + checkpoint.scheduler.steps;
+      if (copy.scheduler.decisionBudget) for (const counts of Object.values(copy.scheduler.decisionBudget)) { counts.opportunities = 0; counts.primaryRequests = 0; counts.completedDecisions = 0; counts.budgetExhaustions = 0; }
       copy.scheduler.steps = 0; copy.scheduler.requests = 0; copy.scheduler.paused = true;
       copy.parent = { runId: checkpoint.launch.runId, checkpointId: checkpoint.id, interventionRefs: [] };
+      // An explicit branch may compare a different strategy; exact restore never silently changes it.
+      if (options.memoryPolicy !== undefined) {
+        if (options.memoryPolicy === 'legacy') delete copy.memoryPolicy;
+        else copy.memoryPolicy = structuredClone(options.memoryPolicy.identity);
+      }
     }
     copy.launch = launch.value;
     return new CharacterRunner(launch.value, { ...registration, descriptor: structuredClone(descriptor) }, { ...connections }, copy, options);
@@ -159,8 +181,9 @@ export class CharacterRunner {
     const checkpoint: RunnerCheckpoint = { version: this.memories.size ? 'simkind.checkpoint/2' : 'simkind.checkpoint/1', id, host: this.manifest().host,
       launch: structuredClone(this.launch), hostState: structuredClone(this.host.checkpoint()), events: this.memories.size ? [] : this.events(),
       ...(this.memories.size ? { archive: { eventCount: this.eventCount, ...(this.storage.revision ? { revision: this.storage.revision() } : {}), actors: Object.fromEntries([...this.memories].map(([actor, manager]) => { const cutoff = manager.cutoff(actor); return [actor, { evidence: cutoff.evidence, episodes: cutoff.episodes, version: cutoff.head.version }]; })) } } : {}),
-      ...(this.memories.size ? { modelCapabilities: Object.fromEntries(Object.entries(this.connections).map(([slot, connection]) => [slot, { text: connection.capabilities.text, json: connection.capabilities.json, ...(connection.capabilities.jsonSchema !== undefined ? { jsonSchema: connection.capabilities.jsonSchema } : {}) }])) } : {}),
-      scheduler: { steps: this.steps, requests: this.requestCount, requestSequence: this.requestSequence, nextActor: this.nextActor, paused: this.paused, ...(this.memories.size ? { memoryTurnOffset: this.memoryTurnOffset } : {}) },
+      ...(this.memories.size || Object.values(this.connections).some(connection => connection.capabilities.responseMode) ? { modelCapabilities: Object.fromEntries(Object.entries(this.connections).map(([slot, connection]) => [slot, { text: connection.capabilities.text, json: connection.capabilities.json, ...(connection.capabilities.responseMode ? { responseMode: connection.capabilities.responseMode } : {}), ...(connection.capabilities.jsonSchema !== undefined ? { jsonSchema: connection.capabilities.jsonSchema } : {}) }])) } : {}),
+      scheduler: { ...(this.decisionBudget ? { decisionBudget: structuredClone(this.decisionBudget) } : {}), steps: this.steps, requests: this.requestCount, requestSequence: this.requestSequence, nextActor: this.nextActor, paused: this.paused, ...(this.memories.size ? { memoryTurnOffset: this.memoryTurnOffset } : {}) },
+      ...(this.memoryPolicy && this.memories.size ? { memoryPolicy: structuredClone(this.memoryPolicy.identity) } : {}),
       ...(this.parent ? { parent: structuredClone(this.parent) } : {}) };
     validateCheckpoint(checkpoint);
     if (this.memories.size) { this.storage.set('checkpoints', id, checkpoint); this.storage.set('runner', 'latestCheckpoint', id); }
@@ -289,23 +312,84 @@ export class CharacterRunner {
     for (const event of this.ledger.receive(events)) this.record('action', event);
   }
 
+  private needsRetrieval(request: Request): boolean {
+    return !!this.memories.get(request.actor)?.policy && !!request.memory && !request.memory.retrievalDone && request.context.purpose !== 'consolidation';
+  }
+
+  private recordRequest(request: Request): void {
+    if (this.needsRetrieval(request)) return; // Record the actual model-facing context after asynchronous retrieval.
+    this.record('request', { context: request.context, observedRevision: request.revision,
+      ...(request.memory && (this.memoryPolicy || request.memory.calls > 0) ? { opportunityTurn: request.memory.turn } : {}),
+      ...(this.options.recordTimings ? { deadline: request.deadline, opportunityDeadline: request.opportunityDeadline } : {}),
+      stage: request.context.purpose === 'consolidation' ? 'maintenance' : 'decision' });
+  }
+
+  private async retrieveMemory(request: Request): Promise<void> {
+    const manager = this.memories.get(request.actor)!, memory = request.memory!;
+    const decisionDeadline = request.deadline;
+    request.retrieving = true;
+    request.deadline = Math.min(decisionDeadline, Date.now() + (manager.settings.retrievalTimeoutMs ?? 10000));
+    const started = Date.now();
+    this.record('memory-retrieval', { requestId: request.id, actor: request.actor, phase: 'started', policy: manager.policy!.identity,
+      cutoff: { evidence: memory.cutoff.evidence, episodes: memory.cutoff.episodes, version: memory.cutoff.head.version },
+      explicit: !!memory.query });
+    const result = await manager.retrieve(request.context, memory.turn, memory.cutoff, request.controller.signal, memory.query);
+    // An adapter that ignored cancellation must not publish a late context or start a model call.
+    if (request.controller.signal.aborted || !this.pending.has(request.id) || Date.now() >= request.deadline) throw new Error('Retrieval expired.');
+    const context = manager.assemble(memory.base, memory.turn, memory.cutoff, result.memories, c => this.bindTools(c));
+    context.requestId = request.id;
+    if (request.context.purpose) context.purpose = request.context.purpose;
+    if (request.context.feedback) context.feedback = request.context.feedback;
+    if (JSON.stringify(context).length > manager.settings.maxContextChars) throw new ContextCapacityError();
+    const selection = result.selection;
+    const usage = Object.fromEntries(['inputTokens', 'outputTokens', 'cachedInputTokens', 'reasoningTokens', 'cost'].flatMap(key => {
+      const n = selection.usage?.[key as keyof NonNullable<typeof selection.usage>];
+      return typeof n === 'number' && Number.isFinite(n) && n >= 0 ? [[key, n]] : [];
+    }));
+    this.record('memory-retrieval', { requestId: request.id, actor: request.actor, phase: 'completed', policy: manager.policy!.identity,
+      mode: selection.mode, references: selection.references.map(ref => ({ kind: ref.kind, id: ref.id })),
+      injectedIds: context.memories.map(m => m.id),
+      queries: (selection.queries ?? []).filter(q => typeof q === 'string').slice(0, 12).map(q => q.slice(0, 4000)), usage,
+      ...(typeof selection.indexComplete === 'boolean' ? { indexComplete: selection.indexComplete } : {}),
+      ...Object.fromEntries(['embeddingCalls', 'indexed'].flatMap(key => { const n = selection[key as 'embeddingCalls' | 'indexed']; return Number.isSafeInteger(n) && n! >= 0 ? [[key, n]] : []; })),
+      ...(this.options.recordTimings ? { durationMs: Date.now() - started } : {}) });
+    request.context = context; memory.retrievalDone = true; request.retrieving = false; request.deadline = decisionDeadline; request.startedAt = Date.now();
+    this.recordRequest(request);
+  }
+
+  private canSpend(primary: boolean): boolean {
+    if (!this.decisionBudget) return this.requestCount < this.launch.config.limits.maxRequests;
+    const reserved = Object.values(this.decisionBudget).reduce((sum, counts) => sum + this.launch.config.limits.maxDecisionOpportunitiesPerActor! - counts.primaryRequests, 0);
+    return this.launch.config.limits.maxRequests - this.requestCount > reserved - (primary ? 1 : 0);
+  }
+
   private continueRequest(request: Request, context: DecisionContext, memory: NonNullable<Request['memory']>): void {
     const manager = this.memories.get(request.actor)!;
     this.bindTools(context);
     if (JSON.stringify(context).length > manager.settings.maxContextChars) { this.contextFailures.set(request.actor, 'Protected character context exceeds its configured capacity.'); return; }
     const deadline = request.context.purpose === 'consolidation' && context.purpose !== 'consolidation' && (manager.settings.maintenanceTimeoutMs ?? 0) > 0
       ? Math.min(request.opportunityDeadline!, Date.now() + this.launch.config.limits.requestTimeoutMs) : request.deadline;
-    if (memory.calls >= manager.settings.maxInternalCalls || this.requestCount >= this.launch.config.limits.maxRequests
+    const primary = !request.primaryStarted && context.purpose !== 'consolidation';
+    if (memory.calls >= manager.settings.maxInternalCalls || !this.canSpend(primary)
       || Date.now() >= deadline) {
-      this.contextFailures.set(request.actor, 'Internal call or opportunity budget exhausted.');
+      if (this.decisionBudget) this.decisionBudget[request.actor].budgetExhaustions++;
+      else this.contextFailures.set(request.actor, 'Internal call or opportunity budget exhausted.');
       return;
     }
     const id = `request:${++this.requestSequence}`;
     context.requestId = id;
     this.requestCount++;
-    const next: Request = { ...request, id, context, deadline, startedAt: Date.now(), finishedAt: undefined, memory: { ...memory, calls: memory.calls + 1 }, controller: new AbortController() };
+    if (primary && this.decisionBudget) this.decisionBudget[request.actor].primaryRequests++;
+    const next: Request = { ...request, primaryStarted: request.primaryStarted || primary, id, context, deadline, startedAt: Date.now(), finishedAt: undefined, retrieving: false, memory: { ...memory, calls: memory.calls + 1 }, controller: new AbortController() };
     this.pending.set(id, next);
-    this.record('request', { context, observedRevision: next.revision, opportunityTurn: memory.turn, ...(this.options.recordTimings ? { deadline: next.deadline, opportunityDeadline: next.opportunityDeadline } : {}), stage: context.purpose === 'consolidation' ? 'maintenance' : 'decision' });
+    this.recordRequest(next);
+  }
+
+  private expireRequest(request: Request): void {
+    if (request.retrieving) {
+      this.record('memory-retrieval', { requestId: request.id, actor: request.actor, phase: 'timeout' });
+      this.contextFailures.set(request.actor, 'Memory retrieval exceeded its opportunity allowance.');
+    } else this.record('model-timeout', { ...this.requestEvidence(request) });
   }
 
   private requestEvidence(request: Request) {
@@ -324,10 +408,18 @@ export class CharacterRunner {
     this.pending.delete(request.id);
     if ((request.finishedAt ?? Date.now()) > request.deadline) {
       request.controller.abort();
-      this.record('model-timeout', { ...this.requestEvidence(request) });
+      this.expireRequest(request);
       return;
     }
     if (completion.status === 'rejected') {
+      if (request.retrieving) {
+        const failure = completion.error instanceof MemoryRetrievalFailure ? completion.error : undefined;
+        const usage = Object.fromEntries(Object.entries(failure?.usage ?? {}).filter(([key, n]) => ['inputTokens', 'outputTokens', 'cost'].includes(key) && typeof n === 'number' && Number.isFinite(n) && n >= 0));
+        this.record('memory-retrieval', { requestId: request.id, actor: request.actor, phase: 'failed', code: 'MEMORY_RETRIEVAL_FAILED', usage, ...(failure ? { embeddingCalls: failure.embeddingCalls } : {}),
+          ...(failure?.diagnostic ? { diagnostic: new ProviderFailure(failure.diagnostic.reason, failure.diagnostic).diagnostic } : {}) });
+        this.contextFailures.set(request.actor, 'Memory retrieval failed; no world action was submitted.');
+        return;
+      }
       // Provider error text can contain request headers or credentials. Never record it.
       const diagnostic = completion.error instanceof ProviderFailure
         ? new ProviderFailure(completion.error.diagnostic.reason, completion.error.diagnostic).diagnostic : undefined;
@@ -383,12 +475,16 @@ export class CharacterRunner {
           committed = true;
           const next = manager.cutoff(request.actor);
           memory.cutoff = { ...next, evidence: memory.cutoff.evidence };
-          context = this.prepareMemoryContext(manager, memory, memory.calls + 1 < manager.settings.maxInternalCalls && this.requestCount + 1 < this.launch.config.limits.maxRequests);
+          context = this.prepareMemoryContext(manager, memory, memory.calls + 1 < manager.settings.maxInternalCalls && (this.decisionBudget ? this.canSpend(false) : this.requestCount + 1 < this.launch.config.limits.maxRequests));
         } else {
-          const recalled = manager.recall(request.actor, memory.cutoff, output.arguments);
+          if (manager.policy) {
+            if (this.validateInput(recallTool.inputSchema)(output.arguments).length) throw new Error('Invalid recall query.');
+            memory.query = structuredClone(output.arguments) as MemoryQuery; memory.retrievalDone = false;
+          }
+          const recalled = manager.policy ? [] : manager.recall(request.actor, memory.cutoff, output.arguments);
           context = manager.assemble(memory.base, memory.turn, memory.cutoff, recalled, context => this.bindTools(context));
           context.purpose = 'recall';
-          context.feedback = recalled.length ? 'Recall results are in memories. Read their sources or choose your world action.' : 'No matching accessible history was found. Try other words or a time range, or decide with uncertainty.';
+          context.feedback = manager.policy ? 'Inspect the retrieved memories and original evidence, search again if needed, or choose your action. Absence of a match is not proof that nothing happened.' : recalled.length ? 'Recall results are in memories. Read their sources or choose your world action.' : 'No matching accessible history was found. Try other words or a time range, or decide with uncertainty.';
         }
       } catch (error) {
         if (committed) this.record('model-result', { ...this.requestEvidence(request), output, usage: safeUsage, telemetry, purpose: 'consolidation', memoryVersion: memory.cutoff.head.version });
@@ -411,6 +507,7 @@ export class CharacterRunner {
         return;
       }
     }
+    if (this.decisionBudget) this.decisionBudget[request.actor].completedDecisions++;
     this.record('model-result', { ...this.requestEvidence(request), output, usage: safeUsage, telemetry, ...(normalization ? { normalization } : {}) });
     if (output.toolId === null) return; // Legal refusal/no action, without manufactured effects.
     const tool = request.context.tools.find((candidate) => candidate.id === output.toolId);
@@ -443,7 +540,7 @@ export class CharacterRunner {
       if (now >= request.deadline) {
         request.controller.abort();
         this.pending.delete(request.id);
-        this.record('model-timeout', { ...this.requestEvidence(request) });
+        this.expireRequest(request);
       }
     }
     this.receive(this.host.drainEvents());
@@ -486,6 +583,7 @@ export class CharacterRunner {
       if (!Object.hasOwn(this.launch.states, actor)) throw new Error('Host scheduled an unknown instance.');
       if (this.requestCount >= limits.maxRequests || this.activeProviders >= limits.maxInFlight) break;
       if ([...this.pending.values()].some((entry) => entry.actor === actor) || this.ledger.unresolved(actor).length) continue;
+      if (this.decisionBudget && this.decisionBudget[actor].opportunities >= limits.maxDecisionOpportunitiesPerActor!) continue;
       const effective = this.launch.effectiveConfig[actor];
       const observations = perspectives.get(actor)!;
       const available = this.host.availableTools(actor);
@@ -518,7 +616,7 @@ export class CharacterRunner {
         const cutoff = manager.cutoff(actor), base = structuredClone(context);
         memoryState = { base, cutoff, turn: this.memoryTurn, calls: 0 };
         try {
-          context = this.prepareMemoryContext(manager, memoryState, this.requestCount + 1 < limits.maxRequests);
+          context = this.prepareMemoryContext(manager, memoryState, this.decisionBudget ? this.canSpend(false) : this.requestCount + 1 < limits.maxRequests);
           this.contextFailures.delete(actor);
         } catch (error) {
           if (!(error instanceof ContextCapacityError)) throw error;
@@ -527,13 +625,16 @@ export class CharacterRunner {
       }
       this.bindTools(context);
       if (manager && JSON.stringify(context).length > manager.settings.maxContextChars) { this.contextFailures.set(actor, 'Protected character context exceeds its configured capacity.'); continue; }
+      const primary = context.purpose !== 'consolidation';
+      if (!this.canSpend(primary)) continue;
+      if (this.decisionBudget) { this.decisionBudget[actor].opportunities++; if (primary) this.decisionBudget[actor].primaryRequests++; }
       this.requestCount++;
       const startedAt = Date.now();
       const maintenanceMs = context.purpose === 'consolidation' ? manager?.settings.maintenanceTimeoutMs ?? 0 : 0;
-      const request: Request = { id, actor, context, memory: memoryState, startedAt, opportunityDeadline: startedAt + maintenanceMs + limits.requestTimeoutMs, revision: this.host.revision(), issuedAtTick: this.steps,
+      const request: Request = { id, actor, primaryStarted: primary, context, memory: memoryState, startedAt, opportunityDeadline: startedAt + maintenanceMs + limits.requestTimeoutMs, revision: this.host.revision(), issuedAtTick: this.steps,
         priority: 0, deadline: startedAt + (maintenanceMs || limits.requestTimeoutMs), controller: new AbortController() };
       this.pending.set(id, request);
-      this.record('request', { context, observedRevision: request.revision, ...(this.options.recordTimings ? { deadline: request.deadline, opportunityDeadline: request.opportunityDeadline } : {}), stage: context.purpose === 'consolidation' ? 'maintenance' : 'decision' });
+      this.recordRequest(request);
       for (const completion of this.runtime.poll([request])) this.complete(completion);
     }
   }
@@ -541,6 +642,7 @@ export class CharacterRunner {
   private prepareMemoryContext(manager: CharacterMemory, memory: NonNullable<Request['memory']>, canConsolidate: boolean): DecisionContext {
     const { base, turn, cutoff } = memory;
     memory.batch = canConsolidate ? manager.batch(base.instanceId, turn, cutoff) : undefined;
+    memory.retrievalDone = false; memory.query = undefined;
     const assemble = () => {
       const context = memory.batch ? manager.consolidationContext(base, memory.batch, cutoff)
         : manager.assemble(base, turn, cutoff, undefined, context => this.bindTools(context));
@@ -634,7 +736,7 @@ export class CharacterRunner {
     return { host: structuredClone(this.host.inspect()), launch: this.launchSnapshot(), status: this.status() };
   }
   hostCapabilities() { return structuredClone(this.registration.descriptor.capabilities); }
-  status() { return { completed: this.host.isComplete?.() ?? false, steps: this.steps, requests: this.requestCount, pendingRequests: this.pending.size,
+  status() { return { ...(this.decisionBudget ? { decisionBudget: structuredClone(this.decisionBudget), opportunityLimitReached: Object.values(this.decisionBudget).every(counts => counts.opportunities >= this.launch.config.limits.maxDecisionOpportunitiesPerActor!) } : {}), completed: this.host.isComplete?.() ?? false, steps: this.steps, requests: this.requestCount, pendingRequests: this.pending.size,
     activeProviders: this.activeProviders, unresolvedActions: this.ledger.unresolved().length, paused: this.paused, stopped: this.stopped, ...(this.memories.size ? { contextFailures: Object.fromEntries(this.contextFailures), memory: Object.fromEntries([...this.memories].map(([actor, manager]) => [actor, manager.cutoff(actor)])) } : {}) }; }
   manifest(): RunBundle {
     const status = this.status();

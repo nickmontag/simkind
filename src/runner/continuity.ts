@@ -11,7 +11,7 @@ export const reviseTool: ToolDescriptor = {
     intentions: { type: 'array', maxItems: 32, items: { type: 'object', additionalProperties: false, required: ['id', 'description'], properties: { id: { type: 'string', pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$' }, description: { type: 'string', maxLength: 4000 } } } },
     interpretation: { type: 'string', minLength: 1, maxLength: 8000 },
     evidence: { type: 'array', uniqueItems: true, maxItems: 32, items: { type: 'string' } },
-    supersedes: { type: 'array', uniqueItems: true, maxItems: 32, items: { type: 'string' } },
+    supersedes: { description: 'IDs of supplied interpretation memories replaced by this interpretation. Never intention, goal, observation, or action IDs. Revise intentions using the intentions field.', type: 'array', uniqueItems: true, maxItems: 32, items: { type: 'string' } },
   } }, lifecycle: { asynchronous: false, cancellable: false },
 };
 /** Model decisions omit bookkeeping; legacy explicit values must match the frozen request. */
@@ -34,7 +34,8 @@ export function reviseState(state: CharacterState, edit: StateEdit, origin: stri
   if (edit.expectedRevision !== state.revision) throw new Error('Stale character state revision.');
   if (edit.intentions === undefined && edit.interpretation === undefined) throw new Error('Supply an intention revision or interpretation.');
   const memories = state.context.memories ?? [];
-  if ([...(edit.evidence ?? []), ...(edit.supersedes ?? [])].some(ref => !visibleMemoryIds.includes(ref))) throw new Error('Reference only supplied memories.');
+  if ((edit.evidence ?? []).some(ref => !visibleMemoryIds.includes(ref))) throw new Error('evidence must reference only supplied memory IDs.');
+  if ((edit.supersedes ?? []).some(ref => !visibleMemoryIds.includes(ref))) throw new Error('supersedes must reference supplied interpretation-memory IDs, not intention or goal IDs. Use intentions to revise intentions.');
   if ((edit.supersedes ?? []).some(ref => memories.find(m => m.id === ref)?.source.kind !== 'interpretation')) throw new Error('Only interpretations can be superseded; observations remain evidence.');
   const next = structuredClone(state);
   if (edit.intentions !== undefined) next.context.intentions = structuredClone(edit.intentions);

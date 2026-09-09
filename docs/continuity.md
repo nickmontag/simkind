@@ -90,3 +90,5 @@ Legacy examples now supply recalled text and evidence as well as memory IDs.
 The village report's `recalledMemoryDecisions` measures co-occurrence; the old
 `memoryInfluencedDecisions` field remains as a deprecated compatibility alias.
 Neither field demonstrates that a memory caused a decision.
+
+`simkind.revise.supersedes` contains supplied interpretation-memory IDs. It does not accept intention, goal, observation, or action IDs. Change intentions with `intentions`; superseding an interpretation retains its original evidence.

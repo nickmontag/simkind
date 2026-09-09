@@ -99,7 +99,7 @@ describe('bounded cleanup and evidence-only archives', () => {
     const releases: (() => void)[] = [];
     let runner: Awaited<ReturnType<typeof setup>>['runner'] | undefined;
     try {
-      const result = await setup(async () => new Promise(resolve => releases.push(() => resolve(idle))), conversationHost, storage, 5);
+      const result = await setup(async () => new Promise(resolve => releases.push(() => resolve(idle))), conversationHost, storage, 100);
       runner = result.runner; runner.step(); await runner.settleDecisions();
       expect(await runner.drainProviders(5)).toBe(false);
       expect(() => runner!.checkpoint()).toThrow('settled');
